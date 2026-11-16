@@ -1,0 +1,104 @@
+name: Discord PR Notifications
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, review_requested]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Send Discord notification
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          USER_MAP: ${{ vars.DISCORD_USER_MAP }}
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          SENDER: ${{ github.event.sender.login }}
+          REVIEWER: ${{ github.event.requested_reviewer.login }}
+          TEAM: ${{ github.event.requested_team.name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$WEBHOOK" ]; then
+            echo "DISCORD_WEBHOOK_URL 시크릿이 설정되지 않았어요."
+            exit 1
+          fi
+
+          # GitHub 아이디 -> 디스코드 유저 ID 매핑 (선택 사항)
+          MAP="${USER_MAP}"
+          [ -z "$MAP" ] && MAP='{}'
+          mention() {
+            local id
+            id=$(echo "$MAP" | jq -r --arg u "$1" '.[$u] // empty')
+            if [ -n "$id" ]; then echo "<@${id}>"; else echo "$1"; fi
+          }
+
+          CONTENT=""
+          case "$ACTION" in
+            opened|reopened|ready_for_review)
+              case "$ACTION" in
+                opened)           TITLE="🔔 새 PR이 올라왔어요" ;;
+                reopened)         TITLE="🔁 PR이 다시 열렸어요" ;;
+                ready_for_review) TITLE="✅ Draft PR이 리뷰 준비를 마쳤어요" ;;
+              esac
+              COLOR=3447003
+              DESC=$(printf '**#%s %s**\n작성자: %s\n브랜치: `%s` → `%s`' \
+                "$PR_NUMBER" "$PR_TITLE" "$PR_AUTHOR" "$HEAD_REF" "$BASE_REF")
+              ;;
+
+            review_requested)
+              if [ -n "$REVIEWER" ]; then
+                # 이 리뷰어가 이미 리뷰를 남긴 적이 있으면 '재리뷰 요청'
+                COUNT=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
+                  --jq "[.[] | select(.user.login == \"$REVIEWER\")] | length" \
+                  | awk '{s+=$1} END {print s+0}')
+                TARGET=$(mention "$REVIEWER")
+              else
+                COUNT=0
+                TARGET="팀 ${TEAM}"
+              fi
+
+              if [ "$COUNT" -gt 0 ]; then
+                TITLE="🔄 재리뷰 요청이 왔어요"
+                COLOR=15105570
+              else
+                TITLE="👀 리뷰 요청이 왔어요"
+                COLOR=5763719
+              fi
+              CONTENT="${TARGET} 님, 리뷰 부탁드려요!"
+              DESC=$(printf '**#%s %s**\n요청한 사람: %s\n리뷰어: %s' \
+                "$PR_NUMBER" "$PR_TITLE" "$SENDER" "${REVIEWER:-$TEAM}")
+              ;;
+
+            *)
+              echo "처리하지 않는 이벤트: $ACTION"
+              exit 0
+              ;;
+          esac
+
+          jq -n \
+            --arg content "$CONTENT" \
+            --arg title "$TITLE" \
+            --arg url "$PR_URL" \
+            --arg desc "$DESC" \
+            --argjson color "$COLOR" \
+            '{
+              username: "다올 GitHub",
+              content: $content,
+              allowed_mentions: { parse: ["users"] },
+              embeds: [{ title: $title, url: $url, description: $desc, color: $color }]
+            }' > payload.json
+
+          curl -sS -f -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"
