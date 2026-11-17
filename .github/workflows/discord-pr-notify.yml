@@ -1,8 +1,15 @@
-name: Discord PR Notifications
+name: Discord Review Notifications
+
+# PR 생성/머지/push 알림은 GitHub 기본 웹훅(디스코드 URL + /github)이 담당하고,
+# 이 워크플로는 멘션이 필요한 "리뷰 요청 / 재리뷰 요청 / 리뷰 / 코멘트"만 보냅니다.
 
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review, review_requested]
+    types: [review_requested]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
 
 permissions:
   pull-requests: read
@@ -10,24 +17,27 @@ permissions:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    # issue_comment는 이슈 코멘트도 포함되므로 PR 코멘트만 통과
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     steps:
       - name: Send Discord notification
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
           USER_MAP: ${{ vars.DISCORD_USER_MAP }}
           GH_TOKEN: ${{ github.token }}
-          ACTION: ${{ github.event.action }}
+          EVENT: ${{ github.event_name }}
           REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_TITLE: ${{ github.event.pull_request.title || github.event.issue.title }}
+          PR_URL: ${{ github.event.pull_request.html_url || github.event.issue.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login || github.event.issue.user.login }}
           SENDER: ${{ github.event.sender.login }}
           REVIEWER: ${{ github.event.requested_reviewer.login }}
           TEAM: ${{ github.event.requested_team.name }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+          REVIEW_URL: ${{ github.event.review.html_url }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          BODY: ${{ github.event.review.body || github.event.comment.body }}
         run: |
           set -euo pipefail
 
@@ -36,7 +46,10 @@ jobs:
             exit 1
           fi
 
-          # GitHub 아이디 -> 디스코드 유저 ID 매핑 (선택 사항)
+          # 봇이 남긴 코멘트/리뷰는 무시
+          case "$SENDER" in *"[bot]") echo "bot 이벤트 무시"; exit 0 ;; esac
+
+          # GitHub 아이디 -> 디스코드 유저 ID 매핑
           MAP="${USER_MAP}"
           [ -z "$MAP" ] && MAP='{}'
           mention() {
@@ -46,21 +59,13 @@ jobs:
           }
 
           CONTENT=""
-          case "$ACTION" in
-            opened|reopened|ready_for_review)
-              case "$ACTION" in
-                opened)           TITLE="🔔 새 PR이 올라왔어요" ;;
-                reopened)         TITLE="🔁 PR이 다시 열렸어요" ;;
-                ready_for_review) TITLE="✅ Draft PR이 리뷰 준비를 마쳤어요" ;;
-              esac
-              COLOR=3447003
-              DESC=$(printf '**#%s %s**\n작성자: %s\n브랜치: `%s` → `%s`' \
-                "$PR_NUMBER" "$PR_TITLE" "$PR_AUTHOR" "$HEAD_REF" "$BASE_REF")
-              ;;
+          LINK="$PR_URL"
+          SHOW_BODY="false"
 
-            review_requested)
+          case "$EVENT" in
+            pull_request)
+              # 리뷰 요청 / 재리뷰 요청
               if [ -n "$REVIEWER" ]; then
-                # 이 리뷰어가 이미 리뷰를 남긴 적이 있으면 '재리뷰 요청'
                 COUNT=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
                   --jq "[.[] | select(.user.login == \"$REVIEWER\")] | length" \
                   | awk '{s+=$1} END {print s+0}')
@@ -78,12 +83,39 @@ jobs:
                 COLOR=5763719
               fi
               CONTENT="${TARGET} 님, 리뷰 부탁드려요!"
-              DESC=$(printf '**#%s %s**\n요청한 사람: %s\n리뷰어: %s' \
+              HEAD_LINE=$(printf '**#%s %s**\n요청한 사람: %s\n리뷰어: %s' \
                 "$PR_NUMBER" "$PR_TITLE" "$SENDER" "${REVIEWER:-$TEAM}")
               ;;
 
+            pull_request_review)
+              # 리뷰 제출 (승인 / 변경 요청 / 코멘트)
+              case "$REVIEW_STATE" in
+                approved)          TITLE="✅ PR이 승인됐어요";          COLOR=5763719 ;;
+                changes_requested) TITLE="🛠️ 변경 요청이 들어왔어요";   COLOR=15548997 ;;
+                *)                 TITLE="💬 리뷰 코멘트가 달렸어요";   COLOR=10181046 ;;
+              esac
+              if [ "$SENDER" != "$PR_AUTHOR" ]; then
+                CONTENT="$(mention "$PR_AUTHOR") 님, 리뷰가 도착했어요!"
+              fi
+              LINK="${REVIEW_URL:-$PR_URL}"
+              SHOW_BODY="true"
+              HEAD_LINE=$(printf '**#%s %s**\n리뷰어: %s' "$PR_NUMBER" "$PR_TITLE" "$SENDER")
+              ;;
+
+            issue_comment)
+              # PR 대화 탭에 남긴 일반 코멘트
+              TITLE="💬 PR에 코멘트가 달렸어요"
+              COLOR=10181046
+              if [ "$SENDER" != "$PR_AUTHOR" ]; then
+                CONTENT="$(mention "$PR_AUTHOR") 님, 새 코멘트가 있어요!"
+              fi
+              LINK="${COMMENT_URL:-$PR_URL}"
+              SHOW_BODY="true"
+              HEAD_LINE=$(printf '**#%s %s**\n작성자: %s' "$PR_NUMBER" "$PR_TITLE" "$SENDER")
+              ;;
+
             *)
-              echo "처리하지 않는 이벤트: $ACTION"
+              echo "처리하지 않는 이벤트: $EVENT"
               exit 0
               ;;
           esac
@@ -91,14 +123,22 @@ jobs:
           jq -n \
             --arg content "$CONTENT" \
             --arg title "$TITLE" \
-            --arg url "$PR_URL" \
-            --arg desc "$DESC" \
+            --arg url "$LINK" \
+            --arg head "$HEAD_LINE" \
+            --arg body "$BODY" \
+            --arg show "$SHOW_BODY" \
             --argjson color "$COLOR" \
-            '{
-              username: "다올 GitHub",
-              content: $content,
-              allowed_mentions: { parse: ["users"] },
-              embeds: [{ title: $title, url: $url, description: $desc, color: $color }]
-            }' > payload.json
+            '
+            ($body | gsub("\r"; "")) as $b
+            | (if $show == "true" and ($b | length) > 0
+                 then "\n\n> " + (($b[0:300]) | gsub("\n"; "\n> "))
+                      + (if ($b | length) > 300 then "…" else "" end)
+                 else "" end) as $quote
+            | {
+                username: "다올 GitHub",
+                content: $content,
+                allowed_mentions: { parse: ["users"] },
+                embeds: [{ title: $title, url: $url, description: ($head + $quote), color: $color }]
+              }' > payload.json
 
           curl -sS -f -H "Content-Type: application/json" -d @payload.json "$WEBHOOK"
