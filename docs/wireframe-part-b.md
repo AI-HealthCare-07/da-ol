@@ -2,7 +2,8 @@
 
 > 담당: 이재경
 > 범위: 처방 등록(OCR/수동) 4개 화면 + AI 가이드·챗봇 2개 화면
-> Figma 링크: (링크 추가 예정)
+> Figma 링크 (PC 웹): (https://www.figma.com/design/mXdAsWIbLpJY4dSd0VPoxQ/%EB%8B%A4%EC%98%AC_%EC%99%80%EC%9D%B4%EC%96%B4%ED%94%84%EB%A0%88%EC%9E%84_%ED%8C%8C%ED%8A%B8B?node-id=0-1&t=3NZYwM6sbjNY9d2g-1)
+> Figma 링크 (모바일 앱): (https://www.figma.com/design/mXdAsWIbLpJY4dSd0VPoxQ/%EB%8B%A4%EC%98%AC_%EC%99%80%EC%9D%B4%EC%96%B4%ED%94%84%EB%A0%88%EC%9E%84_%ED%8C%8C%ED%8A%B8B?node-id=3-2&t=3NZYwM6sbjNY9d2g-1)
 
 ---
 
