@@ -172,13 +172,13 @@ API 하나마다 아래 틀을 복사해서 씁니다.
 | 약 정보 | GET | `/drugs/{drug_id}` | 약 상세(공공데이터) | MED-002 | C-2 | 설아 | 작성 전 |
 | 처방 | GET | `/prescriptions` | 처방 목록(복용 중 / 종료) | MED-002 | C-1 | 설아 | 작성 전 |
 | 처방 | GET | `/prescriptions/{prescription_id}` | 처방 상세(약·복용 조건·시간표) | MED-002 | C-1 | 설아 | 작성 전 |
-| 처방 등록 | POST | `/scans` | 처방전·약봉투 파일 업로드 → 읽기 시작(202) | OCR-001·002 | B-1 | 채민 | 작성 전 |
-| 처방 등록 | GET | `/scans/{scan_id}` | 진행 상태 또는 인식 결과 | OCR-002·003·004 | B-1, B-2 | 채민 | 작성 전 |
-| 처방 등록 | PATCH | `/scans/{scan_id}` | 인식 결과 수정·문서 종류 다시 고르기 | OCR-001·004 | B-2 | 채민 | 작성 전 |
-| 처방 등록 | GET | `/scans/{scan_id}/pages/{page_no}/image` | 원본 페이지 이미지 | OCR-004 | B-2 | 채민 | 작성 전 |
-| 처방 등록 | POST | `/scans/{scan_id}/confirm` | 확정 → `create_prescription()` 호출 → 원본 삭제 | OCR-004 | B-2 | 채민 | 작성 전 |
-| 약 정보 | GET | `/drugs?q=&limit=` | 약 검색(OCR 매칭 후보는 `limit=3`, 직접 입력 검색은 기본 10) | OCR-005, MED-001 | B-2, B-1(직접 입력) | 채민 | 작성 전 |
-| 처방 등록 | PATCH | `/dose-conditions/{condition_id}` | '복용 조건 확인 필요' 항목을 회원이 고름 | MED-008 | B-2 | 채민 | 작성 전 |
+| 처방 등록 | POST | `/scans` | 처방전·약봉투 파일 업로드 → 읽기 시작(202) | OCR-001·002 | B-1 | 채민 | 리뷰 요청 |
+| 처방 등록 | GET | `/scans/{scan_id}` | 진행 상태 또는 인식 결과 | OCR-002·003·004 | B-1, B-2 | 채민 | 리뷰 요청 |
+| 처방 등록 | PATCH | `/scans/{scan_id}` | 인식 결과 수정·문서 종류 다시 고르기 | OCR-001·004 | B-2 | 채민 | 리뷰 요청 |
+| 처방 등록 | GET | `/scans/{scan_id}/pages/{page_no}/image` | 원본 페이지 이미지 | OCR-004 | B-2 | 채민 | 리뷰 요청 |
+| 처방 등록 | POST | `/scans/{scan_id}/confirm` | 확정 → `create_prescription()` 호출 → 원본 삭제 | OCR-004 | B-2 | 채민 | 리뷰 요청 |
+| 약 정보 | GET | `/drugs?q=&limit=` | 약 검색(OCR 매칭 후보는 `limit=3`, 직접 입력 검색은 기본 10) | OCR-005, MED-001 | B-2, B-1(직접 입력) | 채민 | 리뷰 요청 |
+| 처방 등록 | PATCH | `/dose-conditions/{condition_id}` | '복용 조건 확인 필요' 항목을 회원이 고름 | MED-008 | B-2 | 채민 | 리뷰 요청 |
 | 가이드 | GET | `/prescriptions/{prescription_id}/guides` | 복약·생활습관 가이드 보기(만드는 중이면 진행 상태) | GUIDE-001·002·004·006·007 | D-2, C-1 | 유정 | 작성 전 |
 | 가이드 | POST | `/prescriptions/{prescription_id}/guides/retry` | 실패 화면의 [다시 시도] | GUIDE-007 | D-2 | 유정 | 작성 전 |
 | 가이드 | GET | `/guides` | 내 가이드 목록 | GUIDE-004 | D-1 | 유정 | 작성 전 |
@@ -732,7 +732,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 1차에 고를 수 있는 조건은 직접 입력(MED-001)과 같습니다. 식간·공복·n시간 간격은 2차입니다.
   - '필요시'는 약 단위 조건이라 이 API로 바꾸지 않습니다. 1차에는 확정 전에 B-2에서 고릅니다.
   - 이미 확인이 끝난 조건도 다시 고칠 수 있습니다.
-  - 저장 후 시간표·복용 기록 재계산은 민정님 함수(예: `recalculate_schedule(prescription_drug_id)`)를 부릅니다. 오늘 이후의 `pending` 기록만 바꾸고 `taken` 기록은 그대로 둡니다 → 민정님 확인.
+  - 저장 후 시간표·복용 기록 재계산은 민정님 함수(예: `recalculate_schedule(prescription_item_id)`)를 부릅니다. 오늘 이후의 `pending` 기록만 바꾸고 `taken` 기록은 그대로 둡니다 → 민정님 확인.
   - `dose_time`은 그 함수가 계산한 값을 그대로 돌려줍니다. 가이드의 `dose_times`와 달라질 수 있어 유정님과 맞춥니다('확인할 것' 표).
 
 ### [내부] verify_guide()
@@ -753,7 +753,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       attempt_no: int,                   
       is_last_attempt: bool = False,     # 1차는 attempt_no=1, is_last_attempt=True로만 호출. 여러 번 시도·15초 한도(803줄)는 2차
       user_conditions: list[str] | None = None,           # 기저질환 (VERI-004 ⓒ 진단 단정 검사)
-      retrieved_doc_ids: dict[int, list[str]] | None = None,  # prescription_drug_id → 이번 검색 doc_id (2차 VERI-003)
+      retrieved_doc_ids: dict[int, list[str]] | None = None,  # prescription_item_id → 이번 검색 doc_id (2차 VERI-003)
   ) -> dict: ...                         # AI 문서 4-2 검증 결과
   ```
 - 출력:
@@ -763,7 +763,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     "guide_id": 77,
     "passed": false,
     "fail_reasons": [
-      { "type": "value_mismatch", "drug_name": "가상정 5mg", "prescription_drug_id": 501, "item_id": null, "detail": "times_per_day 2 ≠ 처방 3" },
+      { "type": "value_mismatch", "drug_name": "가상정 5mg", "prescription_item_id": 501, "item_id": null, "detail": "times_per_day 2 ≠ 처방 3" },
       { "type": "forbidden", "drug_name": "가상정 5mg", "prescription_item_id": 501, "item_id": "d1-c2", "detail": "복용 중단 권유 표현" }
     ],
     "item_checks": {},
@@ -791,7 +791,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 
   | 규칙 | 무엇을 | 실패 `type` |
   | --- | --- | --- |
-  | VERI-001 원문 대조 | `dose_per_time`·`times_per_day`·`total_days`·`dose_times[]`를 `prescription_drug_id`로 짝지어 비교. 용량은 AI 문서 4-9 방식 | `value_mismatch`, `missing_value` |
+  | VERI-001 원문 대조 | `dose_per_time`·`times_per_day`·`total_days`·`dose_times[]`를 `prescription_item_id`로 짝지어 비교. 용량은 AI 문서 4-9 방식 | `value_mismatch`, `missing_value` |
   | VERI-001 글 속 숫자 | `easy_text` 안의 숫자·'하루 두 번' 같은 표현. 처방 용량이 `parsed: false`인데 용량 숫자가 나오면 실패 | `text_number_mismatch` |
   | VERI-002 빠진 약 | 가이드 `drugs[]`의 `prescription_item_id` 집합이 처방과 같은지 | `missing_drug` |
   | VERI-003 1차 | `has_public_data`를 약품 DB로 다시 판정. `false`인 약에 주의사항·부작용·병원 방문 항목이 있으면 실패 | `no_source` |
