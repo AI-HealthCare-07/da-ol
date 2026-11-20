@@ -827,7 +827,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | **SSE 이벤트는 이 섹션(7-6)을 기준으로 해 주세요.** (민정님이 1-3 표를 고치기로 함, 11/20) 1-3 표는 백엔드 합의(전달사항 2-4) 전 이름이라 수정이 필요합니다: `token` → `delta`, `message` → `text`, 응급 `type`은 `physical` / `self_harm` + `call`(`119` / `109`), `done`은 API가 보냄 | 설아 · 민정 |
 | ✅ 생활습관 가이드도 같은 `verify_guide()`를 `kind="lifestyle"`로 부르고, 금지 표현(VERI-004)만 검사합니다. 질환 단정 검사를 위해 기저질환(`user_conditions`)을 함께 넘깁니다. 걸린 항목은 대신할 기본 정보가 없어 **빼고** 보여 줍니다(11/20 채민님과 합의) | 채민 |
 | ✅ 챗봇 금지 표현(VERI-004) 1차: 시스템 프롬프트로 막고, 답변이 끝난 뒤 `check_full()`(채민)로 검사해 **결과는 기록만** 합니다. 검사 오류가 나도 답변은 막지 않습니다. 화면 정정 안내(`correction` 이벤트)는 2차(VERI-007)입니다 | 채민 |
-| 챗봇 검사 결과를 저장할 칸(예: `chat_messages.check_result`)을 정해 주세요 | 민정 · 채민 |
+| 챗봇 검사 결과는 `chat_messages.check_result`(jsonb)에 저장합니다. 민정님이 ERD에 추가 제안(11/20) | 민정 · 채민 |
 | 챗봇 질문은 저장 전에 개인정보 가리기 함수(`mask_text()`, 채민)를 거칩니다. 3-1 표 담당 추가는 민정님 PR에서 반영 | 채민 · 민정 |
 | 이전 대화 목록·내용 조회는 2차(CHAT-003)입니다. 1차는 채팅창을 열 때마다 대화방을 만들고 목록은 숨깁니다(AI 문서 D23) | 설아 |
 | 공공데이터 `drugs` 적재를 RAG 수집과 같은 파이프라인에서 처리합니다. 컬럼은 ERD `drugs`를 따르고, 데이터 기준일(`data_fetched_at`)을 함께 저장합니다 | 민정 · 채민(약품 매칭) |
@@ -1112,12 +1112,12 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - ERD 저장 값: `physical` → `message_type: emergency_physical`, `self_harm` → `emergency_self_harm`, `out_of_scope` → `out_of_scope`, `error` → `status: failed`.
   - 하루 50개 제한(`RATE_LIMITED`)과 차감 규칙은 2차(CHAT-006)입니다.
 
-### 7-7. 내부 함수: `start_guide_generation(prescription_id, background_tasks)`
+### 7-7. 내부 함수: `start_guide_generation(db, prescription_id, background_tasks)`
 - 설명: 확정된 처방으로 복약 가이드와 생활습관 가이드를 따로, 동시에 만들기 시작합니다. 바로 돌아오고, 실제 생성은 백그라운드에서 합니다.
 - 부르는 곳: 민정님 `create_prescription()`의 마지막 단계(사진 확정·직접 입력 공통)
 - 관련 요구사항: REQ-GUIDE-001·002·003·006·007, REQ-VERI-005, REQ-NFR-006
 - 관련 테이블: `guides`, `prompt_versions`, `llm_call_logs`, `rag_documents`
-- 입력: `prescription_id`, `background_tasks`(FastAPI `BackgroundTasks`, 요청 핸들러에서 `create_prescription()`을 거쳐 넘겨받음)
+- 입력: `db`(요청의 DB 세션. `create_prescription()`과 같은 트랜잭션에서 가이드 행을 만들기 위함), `prescription_id`, `background_tasks`(FastAPI `BackgroundTasks`). `db`와 `background_tasks`는 요청 핸들러에서 `create_prescription()`을 거쳐 넘겨받습니다
 - 출력: 만든 `guide_id` 2개(`medication`, `lifestyle`). 진행 상태는 7-1로 확인합니다.
 - 처리 순서:
   1. `create_prescription()`과 같은 트랜잭션 안에서 `guides`에 두 행을 `status = generating`으로 만들고, 가이드마다 `run_guide_generation(guide_id)`를 `background_tasks`에 등록합니다. 등록된 작업은 응답을 보낸 뒤(트랜잭션 커밋 뒤) 실행됩니다.
@@ -1129,7 +1129,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 검증 호출: 복약 가이드는 `verify_guide(guide, prescription, guide_id=…, attempt_no=1, is_last_attempt=True)`, 생활습관 가이드는 같은 함수에 `kind="lifestyle"`, `user_conditions`를 넘깁니다. 1차는 다시 쓰기가 없어 항상 한 번만 부릅니다.
   - 약 단위 실패(숫자 불일치·빠진 약)는 코드 틀 때문에 생기지 않아야 합니다. 만약 생기면 코드 오류로 보고 기록을 남긴 뒤 그 가이드를 `failed`로 처리합니다.
 - 비고:
-  - 1차 실행 방식: `start_guide_generation(prescription_id, background_tasks)`로 인자를 받아 FastAPI `BackgroundTasks`로 돌립니다(민정님 질문 ①안). `asyncio.create_task()`(②안)는 트랜잭션 커밋 전에 작업이 시작돼 가이드 행을 못 읽을 수 있어서 쓰지 않습니다. 그래서 `create_prescription()`도 `background_tasks`를 받아 넘겨 주세요(OCR 확정·직접 입력 두 API 모두). 2차에 `ai_worker`로 옮길 때 같은 `run_guide_generation(guide_id)`를 그대로 부릅니다(백엔드 전달사항 2-3).
+  - 1차 실행 방식: `start_guide_generation(db, prescription_id, background_tasks)`로 인자를 받아 FastAPI `BackgroundTasks`로 돌립니다(민정님 질문 ①안). `asyncio.create_task()`(②안)는 트랜잭션 커밋 전에 작업이 시작돼 가이드 행을 못 읽을 수 있어서 쓰지 않습니다. 그래서 `create_prescription()`도 `background_tasks`를 받아 자기 `db` 세션과 함께 넘겨 주세요(OCR 확정·직접 입력 두 API 모두). 가이드 행은 넘겨받은 `db`로 만듭니다. `start_guide_generation()`은 커밋하지 않고, 커밋은 `create_prescription()`을 부른 API(`POST /prescriptions`, `POST /scans/{scan_id}/confirm`)가 합니다(4장과 같음). 2차에 `ai_worker`로 옮길 때 같은 `run_guide_generation(guide_id)`를 그대로 부릅니다(백엔드 전달사항 2-3).
   - `run_guide_generation()`은 백그라운드에서 **DB 세션을 새로 열어서** 씁니다. 요청 핸들러의 세션은 응답 후 닫히기 때문입니다.
   - 1회 용량의 `min`·`max`·`parsed`는 ERD에 칸이 없어 `get_confirmed_prescription()`(설아)이 `dose_text`를 표현 사전(채민)으로 읽어 만듭니다. 직접 입력은 `min = max`입니다 → 설아님·채민님 확인
   - LLM을 부를 때마다 `llm_call_logs`에 목적·모델·토큰·응답 시간·성공 여부·프롬프트 버전을 남깁니다. 질문·답변 본문과 개인정보는 남기지 않습니다(NFR-004·006).
@@ -1163,6 +1163,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 2026-11-20 | 민정 | 8번 1·2 확정 |
 | 2026-11-20 | 설아 | 처방 직접 입력(MED-001) 1차 반영: `POST /prescriptions`, 내부 함수 `create_prescription()` 추가(민정), 확정 API는 이 함수를 호출하도록 변경 |
 | 2026-11-20 | 설아 | 약 검색 통합: `/drugs/search?name=` → `/drugs?q=&limit=`(채민), 직접 입력 검색과 공용 |
+| 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
+| 2026-11-20 | 유정 | 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 변경(같은 트랜잭션에서 가이드 행 생성), 챗봇 검사 결과 저장 칸 `chat_messages.check_result` 반영 |
 | 2026-11-20 | 유정 | 7장 민정님 리뷰 반영: 30초 초과는 조회 때도 `failed` 처리·다시 시도 때 `updated_at` 갱신, 가이드 행 없을 때 처리, `start_guide_generation(prescription_id, background_tasks)`·새 DB 세션, 응답 키 항상 포함, `used_default_profile` 기준, 챗봇 `streaming` 60초 규칙, fetch 스트림 안내 |
 | 2026-11-20 | 유정 | 7장 검증 흐름 반영(채민님 코멘트): `easy_text` 코드 틀, `fallback` 문장 바꾸기 규칙, 생활습관 `kind="lifestyle"`·항목 빼기, 챗봇 `check_full()` 기록만 |
 | 2026-11-20 | 유정 | 7장 리뷰 반영: `failed`·30초 기준 확정 표시, 가이드 `dose_times`는 조회 때 시간표 값으로 채움(채민님 제안), 생활습관 가이드 검증 확인 요청 추가 |
