@@ -641,8 +641,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     "status": "confirmed",
     "prescription_id": 88,
     "conditions_to_confirm": [
-      { "condition_id": 5014, "prescription_drug_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 1, "reason": "meal_unknown" },
-      { "condition_id": 5015, "prescription_drug_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 2, "reason": "meal_unknown" }
+      { "condition_id": 5014, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 1, "reason": "meal_unknown" },
+      { "condition_id": 5015, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 2, "reason": "meal_unknown" }
     ]
   }
   ```
@@ -715,7 +715,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   ```json
   {
     "condition_id": 5014,
-    "prescription_drug_id": 502,
+    "prescription_item_id": 502,
     "dose_no": 1,
     "meal": "breakfast",
     "timing": "after_meal",
@@ -749,9 +749,9 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       guide: dict,                       # AI 문서 4-1 가이드 JSON (생성본 1개)
       prescription: dict,                # get_confirmed_prescription() 반환값 (복용 시각 포함)
       *,
-      guide_job_id: int,
-      attempt_no: int,                   # 1부터. 몇 번째 생성본인지
-      is_last_attempt: bool = False,     # True면 실패 항목에 fallback 표시 (VERI-005)
+      guide_id: int,
+      attempt_no: int,                   
+      is_last_attempt: bool = False,     # 1차는 attempt_no=1, is_last_attempt=True로만 호출. 여러 번 시도·15초 한도(803줄)는 2차
       user_conditions: list[str] | None = None,           # 기저질환 (VERI-004 ⓒ 진단 단정 검사)
       retrieved_doc_ids: dict[int, list[str]] | None = None,  # prescription_drug_id → 이번 검색 doc_id (2차 VERI-003)
   ) -> dict: ...                         # AI 문서 4-2 검증 결과
@@ -760,17 +760,17 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 
   ```json
   {
-    "guide_job_id": 77,
+    "guide_id": 77,
     "passed": false,
     "fail_reasons": [
       { "type": "value_mismatch", "drug_name": "가상정 5mg", "prescription_drug_id": 501, "item_id": null, "detail": "times_per_day 2 ≠ 처방 3" },
-      { "type": "forbidden", "drug_name": "가상정 5mg", "prescription_drug_id": 501, "item_id": "d1-c2", "detail": "복용 중단 권유 표현" }
+      { "type": "forbidden", "drug_name": "가상정 5mg", "prescription_item_id": 501, "item_id": "d1-c2", "detail": "복용 중단 권유 표현" }
     ],
     "item_checks": {},
     "fallback_drug_ids": [],
     "attempt_no": 1,
     "rules_version": "verify_rules_v1",
-    "prompt_version": "guide_v1",
+    "prompt_version": "guide_medication_v1",
     "duration_ms": 180,
     "checked_at": "2026-11-20T18:30:05+09:00"
   }
@@ -793,7 +793,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | --- | --- | --- |
   | VERI-001 원문 대조 | `dose_per_time`·`times_per_day`·`total_days`·`dose_times[]`를 `prescription_drug_id`로 짝지어 비교. 용량은 AI 문서 4-9 방식 | `value_mismatch`, `missing_value` |
   | VERI-001 글 속 숫자 | `easy_text` 안의 숫자·'하루 두 번' 같은 표현. 처방 용량이 `parsed: false`인데 용량 숫자가 나오면 실패 | `text_number_mismatch` |
-  | VERI-002 빠진 약 | 가이드 `drugs[]`의 `prescription_drug_id` 집합이 처방과 같은지 | `missing_drug` |
+  | VERI-002 빠진 약 | 가이드 `drugs[]`의 `prescription_item_id` 집합이 처방과 같은지 | `missing_drug` |
   | VERI-003 1차 | `has_public_data`를 약품 DB로 다시 판정. `false`인 약에 주의사항·부작용·병원 방문 항목이 있으면 실패 | `no_source` |
   | VERI-004 금지 표현 | ⓐ 복용 중단·용량 변경·약 대체 권유 ⓑ 처방에 없는 약 이름 ⓒ 기저질환에 없는 질환을 단정하는 표현. 공공데이터 원문 인용·병원 방문 고정 문구는 예외 | `forbidden`, `unknown_drug` |
 - 에러: 규칙 위반은 예외를 던지지 않고 `passed: false`로 돌려줍니다. 가이드 JSON 모양이 깨졌으면 `missing_value`로 돌려줍니다. 함수 내부 오류만 예외(`VerifyError`)를 던지며, 이때 호출하는 쪽은 AI 오류 1회로 셉니다.
