@@ -1129,7 +1129,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 검증 호출: 복약 가이드는 `verify_guide(guide, prescription, guide_id=…, attempt_no=1, is_last_attempt=True)`, 생활습관 가이드는 같은 함수에 `kind="lifestyle"`, `user_conditions`를 넘깁니다. 1차는 다시 쓰기가 없어 항상 한 번만 부릅니다.
   - 약 단위 실패(숫자 불일치·빠진 약)는 코드 틀 때문에 생기지 않아야 합니다. 만약 생기면 코드 오류로 보고 기록을 남긴 뒤 그 가이드를 `failed`로 처리합니다.
 - 비고:
-  - 1차 실행 방식: `start_guide_generation(db, prescription_id, background_tasks)`로 인자를 받아 FastAPI `BackgroundTasks`로 돌립니다(민정님 질문 ①안). `asyncio.create_task()`(②안)는 트랜잭션 커밋 전에 작업이 시작돼 가이드 행을 못 읽을 수 있어서 쓰지 않습니다. 그래서 `create_prescription()`도 `background_tasks`를 받아 자기 `db` 세션과 함께 넘겨 주세요(OCR 확정·직접 입력 두 API 모두). 가이드 행은 넘겨받은 `db`로 만들고 커밋은 `create_prescription()` 쪽에서 합니다. 2차에 `ai_worker`로 옮길 때 같은 `run_guide_generation(guide_id)`를 그대로 부릅니다(백엔드 전달사항 2-3).
+  - 1차 실행 방식: `start_guide_generation(db, prescription_id, background_tasks)`로 인자를 받아 FastAPI `BackgroundTasks`로 돌립니다(민정님 질문 ①안). `asyncio.create_task()`(②안)는 트랜잭션 커밋 전에 작업이 시작돼 가이드 행을 못 읽을 수 있어서 쓰지 않습니다. 그래서 `create_prescription()`도 `background_tasks`를 받아 자기 `db` 세션과 함께 넘겨 주세요(OCR 확정·직접 입력 두 API 모두). 가이드 행은 넘겨받은 `db`로 만듭니다. `start_guide_generation()`은 커밋하지 않고, 커밋은 `create_prescription()`을 부른 API(`POST /prescriptions`, `POST /scans/{scan_id}/confirm`)가 합니다(4장과 같음). 2차에 `ai_worker`로 옮길 때 같은 `run_guide_generation(guide_id)`를 그대로 부릅니다(백엔드 전달사항 2-3).
   - `run_guide_generation()`은 백그라운드에서 **DB 세션을 새로 열어서** 씁니다. 요청 핸들러의 세션은 응답 후 닫히기 때문입니다.
   - 1회 용량의 `min`·`max`·`parsed`는 ERD에 칸이 없어 `get_confirmed_prescription()`(설아)이 `dose_text`를 표현 사전(채민)으로 읽어 만듭니다. 직접 입력은 `min = max`입니다 → 설아님·채민님 확인
   - LLM을 부를 때마다 `llm_call_logs`에 목적·모델·토큰·응답 시간·성공 여부·프롬프트 버전을 남깁니다. 질문·답변 본문과 개인정보는 남기지 않습니다(NFR-004·006).
@@ -1163,6 +1163,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 2026-11-20 | 민정 | 8번 1·2 확정 |
 | 2026-11-20 | 설아 | 처방 직접 입력(MED-001) 1차 반영: `POST /prescriptions`, 내부 함수 `create_prescription()` 추가(민정), 확정 API는 이 함수를 호출하도록 변경 |
 | 2026-11-20 | 설아 | 약 검색 통합: `/drugs/search?name=` → `/drugs?q=&limit=`(채민), 직접 입력 검색과 공용 |
+| 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
 | 2026-11-20 | 유정 | 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 변경(같은 트랜잭션에서 가이드 행 생성), 챗봇 검사 결과 저장 칸 `chat_messages.check_result` 반영 |
 | 2026-11-20 | 유정 | 7장 민정님 리뷰 반영: 30초 초과는 조회 때도 `failed` 처리·다시 시도 때 `updated_at` 갱신, 가이드 행 없을 때 처리, `start_guide_generation(prescription_id, background_tasks)`·새 DB 세션, 응답 키 항상 포함, `used_default_profile` 기준, 챗봇 `streaming` 60초 규칙, fetch 스트림 안내 |
 | 2026-11-20 | 유정 | 7장 검증 흐름 반영(채민님 코멘트): `easy_text` 코드 틀, `fallback` 문장 바꾸기 규칙, 생활습관 `kind="lifestyle"`·항목 빼기, 챗봇 `check_full()` 기록만 |
