@@ -1,0 +1,531 @@
+// =====================================================================
+// 다올(Da-Ol) ERD - 1차 구현 전용 (테이블 20개)
+// 기준: 요구사항 정의서 1차 축소안 (11-20) · 전체 ERD daol_erd.dbml 에서 1차(파랑)만 추출
+//   - 2·3차 테이블 14개와 [2차]·[3차] 표시 컬럼·enum 값은 뺐음
+//   - 2·3차 기능을 붙일 때는 전체 ERD(daol_erd.dbml)를 기준으로 마이그레이션 추가
+//   - 1차 시간표: 생활 일과 테이블 없이 기본 일과(기상 07:00 / 식사 08:00·12:30·18:30 / 취침 23:00)로 계산
+//   - 1차 꽃: 기본 꽃 1종 (꽃 종류 테이블 없음)
+// 공통 규칙
+//   - 날짜·시각은 한국 시간(KST) 기준
+//   - '암호화' 표시 컬럼은 AES-256 으로 저장 (REQ-NFR-004)
+//   - 회원 소유 데이터는 본인만 접근, 다른 회원 데이터 요청은 404 (REQ-NFR-003)
+// dbdiagram.io 에 그대로 붙여넣어 사용 / DB: PostgreSQL 가정
+// =====================================================================
+
+Project daol {
+  database_type: 'PostgreSQL'
+  Note: '1차 구현 전용 ERD (테이블 20개)'
+}
+
+// ---------------------------------------------------------------------
+// ENUM
+// ---------------------------------------------------------------------
+Enum user_status {
+  active
+  withdrawn [note: '탈퇴 즉시 비활성, 30일 후 영구 삭제. 그동안 같은 카카오 계정 재가입 불가 (USER-002·011)']
+}
+
+Enum consent_type {
+  terms
+  privacy
+  sensitive_health [note: '민감정보(건강정보) 별도 동의']
+}
+
+Enum day_type {
+  weekday
+  weekend
+  mon
+  tue
+  wed
+  thu
+  fri
+  sat
+  sun [note: 'mon~sun 은 교대 근무자 요일별 입력(선택)']
+}
+
+Enum document_type {
+  prescription [note: '처방전 = 약 받기 전']
+  pill_envelope [note: '약봉투 = 이미 받은 약']
+}
+
+Enum document_status {
+  uploaded
+  ocr_done
+  ocr_failed
+  confirmed [note: '회원이 인식 결과 확인 완료 → 원본·변환 이미지 삭제']
+  expired [note: '3시간 내 미확정 → 원본·변환 이미지 자동 삭제 (6-10)']
+}
+
+Enum prescription_source {
+  ocr
+  manual
+}
+
+Enum prescription_status {
+  active
+  ended
+}
+
+Enum dose_condition_type {
+  before_meal [note: '식전 n분']
+  after_meal [note: '식후 n분']
+  bedtime [note: '취침 전 = 취침 시각 기준']
+  as_needed [note: '필요시 - 시간표·알림 제외']
+}
+
+Enum meal_type {
+  breakfast
+  lunch
+  dinner
+}
+
+Enum parsed_by {
+  rule
+  user
+}
+
+Enum time_basis {
+  prescription [note: '처방전·약 정보에 적힌 시간']
+  official [note: '공식 기준 (예: 질병관리청)']
+  needs_check [note: '복용 시간 확인 필요']
+}
+
+Enum schedule_status {
+  ok
+  needs_check [note: '일과로 조건을 지킬 수 없음 / 간격 불가 / 끼니 미기재']
+}
+
+Enum intake_status {
+  pending
+  taken
+  missed [note: '하루(기상~다음 기상 전) 끝날 때까지 미체크']
+}
+
+Enum guide_type {
+  medication
+  lifestyle
+}
+
+Enum guide_status {
+  generating [note: "'가이드 만드는 중'"]
+  verifying [note: "'내용 확인 중'"]
+  completed [note: '검증 통과']
+  completed_with_replacements [note: '일부 항목을 기본 정보로 대체 (VERI-005)']
+  failed [note: "생성·검증 실패 또는 30초 초과 → 기본 약 정보 + [다시 시도] (GUIDE-007)"]
+}
+
+Enum prompt_kind {
+  guide_medication
+  guide_lifestyle
+  chat
+  parse_condition
+  parse_document
+  scope_classify
+  verify
+}
+
+Enum chat_role {
+  user
+  assistant
+}
+
+Enum chat_message_type {
+  normal
+  emergency_physical [note: '119 안내 후 LLM 답변 이어짐']
+  emergency_self_harm [note: '109 안내만, 일반 답변 없음']
+  out_of_scope [note: '범위 밖 안내']
+}
+
+Enum chat_message_status {
+  streaming
+  completed
+  failed [note: "'다시 보내기' 표시, 사용량 미차감"]
+}
+
+Enum llm_purpose {
+  guide
+  chat
+  parse
+  verify
+  classify
+}
+
+// ---------------------------------------------------------------------
+// 1. 회원
+// ---------------------------------------------------------------------
+Table users [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  kakao_id varchar(100) [not null, unique, note: '카카오 회원번호. 회원 식별 기준. 탈퇴 30일 후 행이 영구 삭제되면 같은 카카오 계정으로 새로 가입 가능']
+  email varchar(255) [note: '카카오에서 동의한 경우에만 저장 (선택 동의)']
+  nickname varchar(20) [not null, unique, note: '2~10자. 카카오 닉네임 중복 시 무작위 4자리 부여']
+  name varchar(50) [note: '추가 정보 입력 전까지 NULL']
+  birth_date date [note: '추가 정보 입력 전까지 NULL']
+  gender varchar(10) [note: '추가 정보 입력 전까지 NULL']
+  is_profile_completed boolean [not null, default: false, note: "추가 정보 입력 완료 여부. false면 로그인 후 '추가 정보 입력' 화면으로 이동"]
+  status user_status [not null, default: 'active']
+  withdrawn_at timestamptz [note: '탈퇴 시각. 30일 재가입 제한·영구 삭제 기준 (탈퇴 기능은 2차, 로그인 차단은 1차)']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'USER-002 카카오 회원가입·로그인, USER-008~011. 비밀번호·로그인 잠금 컬럼 없음 (카카오만 제공, 11/19). 파트너(NOTI-006)도 카카오 로그인한 회원 행으로 저장 (파트너 전용 가입 흐름은 팀 협의). 카카오 토큰은 회원당 1개라 별도 테이블 없이 컬럼으로 둠'
+}
+
+Table user_consents [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  consent_type consent_type [not null]
+  agreed boolean [not null]
+  agreed_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, consent_type) [unique]
+  }
+  Note: 'USER-002 필수 약관 동의 (추가 정보 입력 화면) + 카카오톡 메시지·파트너 공유 동의 (NOTI-005·006). 동의 철회 시 agreed=false 로 갱신'
+}
+
+Table refresh_tokens [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  token_hash varchar(255) [not null, unique]
+  expires_at timestamptz [not null, note: '14일']
+  revoked_at timestamptz [note: '로그아웃·탈퇴 시 무효화']
+  created_at timestamptz [not null, default: `now()`]
+  Note: 'USER-006 로그아웃·토큰 재발급, NFR-003'
+}
+
+Table health_profiles [headercolor: #3B82F6] {
+  user_id bigint [pk, ref: - users.id]
+  height_cm decimal(5,1)
+  weight_kg decimal(5,1)
+  allergies text [note: '약물·식품 알레르기. 암호화']
+  is_pregnant_or_nursing boolean [note: '여성만 노출']
+  is_smoker boolean
+  drinks_per_week int
+  exercise_per_week int
+  updated_at timestamptz [not null, default: `now()`]
+  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 가이드 생성 전 입력 유도 팝업'
+}
+
+Table user_conditions [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  condition_code varchar(30) [not null, note: 'hypertension / diabetes / dyslipidemia / heart / kidney / liver / other']
+  condition_text varchar(200) [note: "condition_code = 'other' 일 때 직접입력. 암호화"]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  Note: "USER-010 기저질환 (선택지 + 기타 직접입력). '없음'은 행 없음으로 표현. 진료 기록 진단명은 제외 (11/19)"
+}
+
+// ---------------------------------------------------------------------
+// 2. 의료 문서 · OCR
+// ---------------------------------------------------------------------
+Table medical_documents [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 내용이 달라 보이면 '처방전이 아닌 것 같아요' 경고"]
+  status document_status [not null, default: 'uploaded']
+  hospital_name varchar(100)
+  issued_date date [note: '처방일 / 조제일. 복용 시작일 기본값']
+  parsed_result text [note: "확인 화면용 구조화 결과 JSON(신뢰도, 원문 줄, 페이지 번호, 먹는 약 여부 is_oral 포함. '먹는 약 아님' 줄은 확정 시 저장하지 않음). 이름·주민등록번호·환자번호·면허번호·연락처 마스킹 후 JSON 문자열을 암호화해 저장(암호화하면 jsonb 질의가 안 되므로 text). 확정 시 처방 테이블로 옮긴 뒤 NULL로 비우고, 3시간 만료 시에도 NULL (NFR-004)"]
+  image_delete_due_at timestamptz [not null, note: '업로드 + 3시간(환경 변수로 관리). 그 전에 확정되면 확정 시 삭제 (6-10)']
+  created_at timestamptz [not null, default: `now()`]
+  confirmed_at timestamptz
+  Note: 'OCR-001~005. 한 번 업로드 = 처방 한 건 (병원명·처방일이 다르면 따로 등록 안내). 질병분류기호는 저장하지 않음'
+}
+
+Table document_pages [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  document_id bigint [not null, ref: > medical_documents.id]
+  page_no int [not null, note: '문서 전체 기준 순서. 확인 화면에서 바꿀 수 있음']
+  original_name varchar(255) [note: '업로드한 파일 이름']
+  mime_type varchar(50) [not null, note: 'image/jpeg, image/png, application/pdf']
+  file_size_bytes int [not null, note: '파일 1개당 10MB 이하, 문서 합계 30MB 이하 (6-1, 6-3). PDF는 페이지마다 같은 값']
+  file_hash char(64) [not null, note: "원본 파일 SHA-256. 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). PDF는 페이지마다 같은 값"]
+  file_path varchar(500) [not null, note: '원본 파일 경로. PDF는 페이지마다 같은 경로']
+  source_page_no int [not null, default: 1, note: '원본 파일 안의 페이지 (PDF), 이미지는 1']
+  image_path varchar(500) [not null, note: 'OCR·원본 보기용 페이지 이미지 (PDF는 변환본, 6-8·6-9)']
+  ocr_text text [note: '페이지별 OCR 결과. 이름·주민등록번호·환자번호·면허번호·연락처 마스킹 후 저장. 암호화']
+  ocr_status varchar(20) [not null, default: 'pending', note: 'pending / done / failed']
+  deleted_at timestamptz [note: '원본 파일·변환 이미지 삭제 시각 (NFR-004)']
+
+  indexes {
+    (document_id, page_no) [unique]
+    file_hash
+  }
+  Note: '업로드 파일 + 페이지 통합 (11/20). 이미지 1장 = 1행, PDF n페이지 = n행. CLOVA OCR 페이지별 처리 (6-8). 확인 화면에서 표 옆에 페이지 이미지 표시, 여러 장이면 페이지 넘김 (6-9). 암호 PDF는 업로드 단계에서 차단 (6-2)'
+}
+
+// ---------------------------------------------------------------------
+// 3. 약 마스터 (공공데이터, 사전 적재)
+// ---------------------------------------------------------------------
+Table drugs [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  item_seq varchar(20) [not null, unique, note: '식약처 품목기준코드']
+  item_name varchar(200) [not null, note: '상품명']
+  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). DUR·중복 검사와 성분 검색은 drug_ingredients 사용']
+  company varchar(100)
+  efficacy text
+  usage_text text
+  precautions text
+  side_effects text
+  storage_method text
+  is_oral boolean [note: "먹는 약 여부 (제형으로 판단). false면 '먹는 약 아님'으로 표시하고 등록 안 함. 알 수 없으면 NULL → 회원 확인 (OCR-003·004)"]
+  image_url varchar(500)
+  data_fetched_at date [not null, note: "데이터 기준일 - 상세 화면 하단 표시 (MED-002)"]
+
+  indexes {
+    item_name
+    ingredient_name
+  }
+  Note: 'e약은요 / 의약품 허가정보. OCR-005 매칭 후보·MED-001 약 검색은 같은 API(GET /drugs?q=) 사용, MED-002(약 상세)'
+}
+
+Table rag_documents [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  source_type varchar(20) [not null, note: 'drug_info / guideline (대표 타겟: 고혈압·당뇨·이상지질혈증 가이드라인 위주)']
+  title varchar(300) [not null, note: '가이드 하단 출처(문서명) 표시']
+  source_url varchar(500)
+  drug_id bigint [ref: >? drugs.id]
+  chunk_count int [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  Note: 'GUIDE-003. 임베딩·청크는 벡터 DB에 저장하고 metadata 에 rag_documents.id 기록'
+}
+
+// ---------------------------------------------------------------------
+// 4. 처방 · 복약
+// ---------------------------------------------------------------------
+Table prescriptions [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  document_id bigint [unique, ref: - medical_documents.id, note: '수동 등록(MED-001)이면 NULL. OCR 확정·수동 등록 모두 같은 저장 함수 create_prescription()으로 생성']
+  source prescription_source [not null]
+  hospital_name varchar(100)
+  prescribed_date date
+  status prescription_status [not null, default: 'active']
+  memo varchar(500)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  Note: 'MED-001·002·004. 삭제(2차) 시 복약 기록·자동 질문(미확인) 함께 삭제'
+}
+
+Table prescription_items [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  prescription_id bigint [not null, ref: > prescriptions.id]
+  drug_id bigint [ref: >? drugs.id, note: "회원이 고르지 않거나 매칭 실패면 NULL → '이 약은 안내 정보가 없습니다'"]
+  drug_name_raw varchar(200) [not null, note: '처방전에 적힌 약품명']
+  source_text varchar(500) [note: '처방전 원문 줄. 확인 화면에서 변환 결과와 나란히 표시. parsed_result와 같은 마스킹 적용']
+  dose_text varchar(50) [not null, note: "처방전 표기 그대로 ('1정', '0.5정', '1포')"]
+  dose_amount decimal(8,3) [note: '숫자 용량. 숫자 없으면 NULL']
+  dose_unit varchar(10) [note: '정 / 캡슐 / 포 / mg / mL 등']
+  times_per_day int [not null, note: '1~4. 투여 주기가 매일이 아니면 복용하는 날의 횟수']
+  start_date date [not null, note: '기본값 처방일, 없으면 오늘. 주기 계산 기준일(첫 투여일)']
+  total_days int [not null, note: '1~365']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  Note: '처방 1건 안의 먹는 약 1줄. 같은 약이 용량만 다르게 여러 줄이면 합치지 않고 확인 안내만 (감량 일정 제외, 11/19)'
+}
+
+Table dose_conditions [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  prescription_item_id bigint [not null, ref: > prescription_items.id]
+  slot_no int [not null, note: '회차 (1, 2, 3...) - 아침 식전 · 저녁 식후처럼 회차별 조건']
+  condition_type dose_condition_type [note: "NULL = '복용 조건 확인 필요' → 회원이 목록에서 선택"]
+  meal meal_type [note: "1일 1·2회인데 끼니가 안 적혀 있으면 NULL → '복용 시간 확인 필요'"]
+  offset_minutes int [note: '식전·식후 n분. 기준값은 규칙 사전에서 확정']
+  interval_hours int [note: 'interval_hours 일 때']
+  time_basis time_basis [not null, note: '처방전 → 공식 기준 → 확인 필요 순서']
+  source_phrase varchar(100) [note: "변환 전 복용법 문구 ('식후 30분')"]
+  parsed_by parsed_by [not null]
+  user_confirmed boolean [not null, default: false, note: "회원이 '확인'을 누르기 전에는 시간표 계산 안 함"]
+
+  indexes {
+    (prescription_item_id, slot_no) [unique]
+  }
+  Note: 'MED-008 복용 조건 구조화'
+}
+
+Table dose_schedules [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  dose_condition_id bigint [not null, ref: > dose_conditions.id]
+  day_type day_type [not null, note: "생활 일과 종류별로 계산. 1차는 기본 일과로 'weekday' 한 행만 만들고 매일 같은 시각 사용"]
+  calculated_time time [note: 'needs_check 이면 NULL (임의로 정하지 않음)']
+  status schedule_status [not null, default: 'ok']
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (dose_condition_id, day_type) [unique]
+  }
+  Note: 'MED-009 맞춤 시간표 (규칙 기반). 일과 변경 시 재계산(MED-011). 알림 시각도 이 값 사용(NOTI-001·005)'
+}
+
+Table intake_logs [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  prescription_item_id bigint [not null, ref: > prescription_items.id]
+  dose_condition_id bigint [ref: >? dose_conditions.id]
+  log_date date [not null, note: '일과 기준 하루 (기상 ~ 다음 기상 전), KST']
+  scheduled_time time [note: '그날 기준 복용 시각 스냅샷. 필요시 약은 NULL']
+  dose_text varchar(50) [not null, note: '그날 용량 스냅샷']
+  is_as_needed boolean [not null, default: false, note: "'필요할 때 복용' 영역에서 체크"]
+  status intake_status [not null, default: 'pending']
+  taken_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (prescription_item_id, log_date, scheduled_time) [unique]
+    (user_id, log_date)
+  }
+  Note: 'MED-005·016 복약 체크(최근 3일까지 수정), MED-006·021 화단·통계·순응도 계산 원천. 등록 첫날은 등록 시각 이후 회차부터 생성. 연속 기록(MED-018)도 여기서 계산'
+}
+
+// ---------------------------------------------------------------------
+// 5. AI 가이드 · 검증
+// ---------------------------------------------------------------------
+Table prompt_versions [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  kind prompt_kind [not null]
+  version varchar(20) [not null]
+  content text [not null, note: '시스템 프롬프트 + 출력 항목 템플릿 (1차부터 고정, 6-6)']
+  model varchar(50) [not null, note: '개발 Haiku / 배포 Sonnet']
+  temperature decimal(3,2) [not null, default: 0.1, note: 'NFR-017(1차): 0.1~0.2 고정']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (kind, version) [unique]
+  }
+  Note: 'NFR-017 템플릿·Temperature 고정(1차), NFR-013 정식 일관성 평가(2차), VERI-006 이력, GUIDE-008 버전별 만족도, NFR-011 검수 기록'
+}
+
+Table guides [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  prescription_id bigint [not null, ref: > prescriptions.id]
+  guide_type guide_type [not null]
+  status guide_status [not null, default: 'generating', note: '진행 상태 표시용']
+  content jsonb [note: "약별 항목이 나뉜 JSON (VERI-001 대조용). 항목마다 check(1차는 fallback만: 기본 정보로 대체된 항목 → '확인이 필요해요' (VERI-005). verified·needs_check와 근거(drug_id 또는 rag_document_id) → '출처 확인됨 / 확인 필요'는 2차 (VERI-003·006)). 생성 중·실패 시 NULL"]
+  prompt_version_id bigint [ref: >? prompt_versions.id]
+  used_default_profile boolean [not null, default: false, note: '건강 프로필 없이 생성 → 상단 표시']
+  is_outdated boolean [not null, default: false, note: "처방 수정 시 true → '처방이 변경되었어요'"]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (prescription_id, guide_type) [unique, note: '처방당 종류별 1개, 재생성 시 덮어씀']
+  }
+    Note: 'GUIDE-001·002·004·007. 실패 시 행을 지우지 않고 status=failed, content=NULL로 유지 → 조회 API가 "아직 시작 안 함"(행 없음)과 "실패"를 구분, D-1 "다시 시도 필요" 표시. [다시 시도]는 같은 행을 generating으로 되돌림'
+}
+
+// ---------------------------------------------------------------------
+// 6. 챗봇 · 피드백
+// ---------------------------------------------------------------------
+Table chat_sessions [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`, note: '최근 대화 순 정렬']
+  Note: 'CHAT-001·003 대화방'
+}
+
+Table chat_messages [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  session_id bigint [not null, ref: > chat_sessions.id]
+  role chat_role [not null]
+  message_type chat_message_type [not null, default: 'normal']
+  status chat_message_status [not null, default: 'completed']
+  content text [not null, note: '최대 500자(질문). 암호화']
+  is_recommended_question boolean [not null, default: false, note: '추천 질문 버튼 - 1회로 셈']
+  correction_note text
+  prompt_version_id bigint [ref: >? prompt_versions.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (session_id, created_at)
+  }
+  Note: 'CHAT-001~006. LLM 요청엔 최근 10턴만. 하루 사용량 제한(counts_toward_quota)은 2차 (CHAT-006)'
+}
+
+// ---------------------------------------------------------------------
+// 7. 화분 동기부여 (1차: 원형 약통 체크 + 기본 꽃 피우기)
+//    연속 기록·순응도·통계는 intake_logs 에서 계산 (별도 테이블 없음)
+// ---------------------------------------------------------------------
+
+Table daily_flowers [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  log_date date [not null, note: '일과 기준 하루 (intake_logs.log_date 와 같은 기준)']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, log_date) [unique]
+  }
+  Note: "MED-017 꽃 피우기 → MED-019 화단 날짜 칸. 하루 복용을 모두 체크하면 생성, 체크 취소로 완료가 풀리면 삭제(포인트도 취소). 다 못 먹은 날은 행 없음 = 빈 흙"
+}
+
+// ---------------------------------------------------------------------
+// 8. 운영 로그
+// ---------------------------------------------------------------------
+Table llm_call_logs [headercolor: #3B82F6] {
+  id bigint [pk, increment]
+  user_id bigint [ref: >? users.id]
+  purpose llm_purpose [not null]
+  model varchar(50) [not null]
+  prompt_version_id bigint [ref: >? prompt_versions.id]
+  input_tokens int [not null]
+  output_tokens int [not null]
+  cache_read_tokens int [not null, default: 0, note: 'Prompt Caching 효과 확인']
+  latency_ms int [not null]
+  success boolean [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    created_at
+  }
+  Note: 'NFR-006 비용 관리 (1차는 호출 기록만, 월 크레딧 80% 도달 알림은 2차). 프롬프트·답변 본문과 개인정보는 저장하지 않음'
+}
+
+// ---------------------------------------------------------------------
+// 테이블 그룹
+// ---------------------------------------------------------------------
+TableGroup member {
+  users
+  user_consents
+  refresh_tokens
+  health_profiles
+  user_conditions
+}
+
+TableGroup document_ocr {
+  medical_documents
+  document_pages
+}
+
+TableGroup drug_master {
+  drugs
+  rag_documents
+}
+
+TableGroup medication {
+  prescriptions
+  prescription_items
+  dose_conditions
+  dose_schedules
+  intake_logs
+}
+
+TableGroup ai_guide {
+  prompt_versions
+  guides
+}
+
+TableGroup chat_feedback {
+  chat_sessions
+  chat_messages
+}
+
+TableGroup garden {
+  daily_flowers
+}
+
+TableGroup ops_log {
+  llm_call_logs
+}
