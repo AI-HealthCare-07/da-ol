@@ -950,7 +950,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     | 생활습관 항목 | 바꾸지 않고 항목을 뺍니다 |
 
     공공데이터 원문이 비어 있으면 고정 문구를 씁니다. `easy_text`(먹는 법)는 코드 틀로 만들어 `fallback` 대상이 아닙니다.
-  - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음).
+  - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음). 가이드를 만든 뒤에 건강 프로필을 입력했으면(`GET /users/me/health-profile`의 `is_registered: true`) 이 문구 대신 "입력한 건강 프로필은 다음 처방 가이드부터 반영돼요"를 표시합니다. 1차는 다시 만들기가 없어서 이미 만든 가이드는 바꾸지 않습니다(GUIDE-005 2차, 4장 `PUT /users/me/health-profile` 비고와 같음) → 문구는 설아님 확인
   - `content.sources`는 화면 하단 출처 목록입니다. 문장별 출처에서 겹치는 것을 뺀 목록이고, 실제로 문장에 쓴 근거만 넣습니다(GUIDE-003).
   - 면책 문구는 `disclaimer` 값을 그대로 고정 표시합니다(GUIDE-006).
 
@@ -1163,6 +1163,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 2026-11-20 | 민정 | 8번 1·2 확정 |
 | 2026-11-20 | 설아 | 처방 직접 입력(MED-001) 1차 반영: `POST /prescriptions`, 내부 함수 `create_prescription()` 추가(민정), 확정 API는 이 함수를 호출하도록 변경 |
 | 2026-11-20 | 설아 | 약 검색 통합: `/drugs/search?name=` → `/drugs?q=&limit=`(채민), 직접 입력 검색과 공용 |
+| 2026-11-20 | 유정 | 7-1 건강 프로필을 나중에 입력한 경우의 상단 문구 추가(4장 건강 프로필 비고 답변) |
 | 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
 | 2026-11-20 | 유정 | 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 변경(같은 트랜잭션에서 가이드 행 생성), 챗봇 검사 결과 저장 칸 `chat_messages.check_result` 반영 |
 | 2026-11-20 | 유정 | 7장 민정님 리뷰 반영: 30초 초과는 조회 때도 `failed` 처리·다시 시도 때 `updated_at` 갱신, 가이드 행 없을 때 처리, `start_guide_generation(prescription_id, background_tasks)`·새 DB 세션, 응답 키 항상 포함, `used_default_profile` 기준, 챗봇 `streaming` 60초 규칙, fetch 스트림 안내 |
