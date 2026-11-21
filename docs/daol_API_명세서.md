@@ -185,7 +185,7 @@ API 하나마다 아래 틀을 복사해서 씁니다.
 | 챗봇 | GET | `/chat/suggestions` | 추천 질문 3개 | CHAT-001 | F-1 | 유정 | 리뷰 요청 |
 | 챗봇 | POST | `/chat/sessions` | 채팅창을 열 때 새 대화 만들기 | CHAT-001 | F-1 | 유정 | 리뷰 요청 |
 | 챗봇 | POST | `/chat/sessions/{session_id}/messages` | 질문 보내기 → 답변(SSE) | CHAT-001·002·004·005, VERI-004 | F-1 | 유정 | 리뷰 요청 |
-| 내부 | - | `verify_guide()` | 가이드 검증(원문 대조·빠진 약·금지 표현) | VERI-001·002·004 | - | 채민 | 작성 전 |
+| 내부 | - | `verify_guide()` | 가이드 검증(원문 대조·빠진 약·금지 표현) | VERI-001·002·004 | - | 채민 | 리뷰 요청 |
 | 내부 | - | `start_guide_generation()` | 처방 확정 후 가이드 생성 시작(비동기) | GUIDE-001·002 | - | 유정 | 리뷰 요청 |
 | 내부 | - | `get_confirmed_prescription()` | 확정 처방 + 회차별 복용 조건 조회 | OCR-004, MED-008 | - | 설아 | 작성 전 |
 | 내부 | - | `create_prescription()` | 처방 저장 → 시간표 계산 → 복용 기록 생성 → 가이드 생성 시작(OCR 확정·직접 입력 공용) | OCR-004, MED-001·009 | - | 민정 | 작성 전 |
@@ -252,7 +252,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 <!-- 채민 START · 처방 등록·검증 -->
 ## 6. 처방 등록·검증 (AI A)
 
-담당: 채민 · 관련 화면: B-1, B-2 · 관련 테이블: `medical_documents`, `document_pages`, `drugs`, `prescriptions`·`prescription_items`·`dose_conditions`(확정 시 생성)
+담당: 채민 · 관련 화면: B-1, B-2, A-2(홈 끼니 고르기) · 관련 테이블: `medical_documents`, `document_pages`, `drugs`, `prescriptions`·`prescription_items`·`dose_conditions`(확정 시 생성), `dose_schedules`·`intake_logs`(복용 조건 수정 시 다시 계산) · 내부 함수: `verify_guide()`, `parse_dose_text()`, `mask_text()`, `check_full()`(6-4)
 
 > AI 파트 기획 문서 v5의 6-1(AI A), 4-3, 4-10, 11-2를 1-4 양식으로 옮겨 적습니다.
 
@@ -262,18 +262,24 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 확인할 것 | 같이 볼 사람 |
 | --- | --- |
 | ✅ 확정 API는 채민님이 맡고, 저장은 민정님의 `create_prescription()`을 부릅니다(AI 문서 D11, 11/20). 채민님은 인식 결과를 이 함수의 입력 형식으로 넘기고 원본을 삭제합니다 | 민정 · 유정 |
-| `create_prescription()` 입력 형식을 `POST /scans/{scan_id}/confirm` Request Body와 같게 제안했습니다. 직접 입력(`POST /prescriptions`)도 같은 모양(`source`만 다름)을 쓰면 됩니다 → 민정님 확인 | 민정 |
-| 약 검색은 `GET /drugs?q=&limit=` 하나로 처리합니다. 자동완성이라 1번의 목록 규칙(`page`·`size`·`total`) 대신 `{"items": [...]}`만 돌려주는 예외로 적었습니다 → 민정님 확인(공통 규칙 예외) | 민정 · 설아 |
-| 진행 상태 값: 1-2 규칙대로 ERD `document_status`(`uploaded / ocr_done / ocr_failed / confirmed / expired`)를 그대로 쓰고, 로딩 문구용으로 `step`(`reading / structuring`)을 따로 둡니다(6-1). AI 문서 4-10 값은 쓰지 않습니다 → 민정·설아님 확인 | 민정 · 설아 |
+| ✅ `create_prescription()` 입력 형식은 `POST /scans/{scan_id}/confirm` Request Body와 같은 모양입니다. 직접 입력도 같은 모양이고 `source`만 다릅니다(4장 4-9 #8) | 민정 |
+| ✅ 약 검색은 `GET /drugs?q=&limit=` 하나로 처리합니다. 자동완성이라 `{"items": [...]}`만 돌려주는 예외를 1번 '목록' 규칙에 적었습니다(4장 4-9 #20). 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)에 맞췄습니다 | 민정 · 설아 |
+| ✅ 진행 상태 값: 1-2 규칙대로 ERD `document_status`(`uploaded / ocr_done / ocr_failed / confirmed / expired`)를 그대로 쓰고, 로딩 문구용으로 `step`(`reading / structuring`)을 따로 둡니다(6-1, 4장 4-9 #21) | 민정 · 설아 |
 | 칸별 신뢰도 `{value, confidence, needs_check}`로 확인 화면의 노란색 강조를 표시합니다(6-2) | 설아 |
 | 원본 이미지 API는 인증 헤더가 필요해서 `<img src>`로 바로 쓸 수 없습니다. `fetch`로 받아 blob URL로 띄워 주세요 | 설아 |
-| 업로드 장 수 상한(제안 10장)과 OCR 호출 제한(제안 회원당 하루 20회) 값을 정해야 합니다(AI 문서 D22) | 민정 |
-| 복용 기록 생성 시점(4번 질문에 대한 답): 확정 시각 이후 회차부터 만드는 것을 제안합니다. 복용 시작일이 과거여도 지난 회차는 만들지 않고, 종료일(시작일 + 총 일수)은 그대로 둡니다 | 민정 |
-| `dose_conditions` 한 행 = 약 한 줄의 회차 하나로 가정했습니다. 다르면 `PATCH /dose-conditions` 모양을 바꿉니다. 조건을 바꾼 뒤 시간표·복용 기록을 다시 계산할 함수가 필요합니다 | 민정 |
+| ✅ 업로드는 한 번에 10장, OCR 호출은 회원당 하루 20회입니다(4장 4-9 #19, CLOVA OCR의 PDF 1회 10페이지와도 맞음) | 민정 |
+| ✅ 복용 기록은 확정 시각 이후 회차부터 만듭니다. 복용 시작일이 과거여도 지난 회차는 만들지 않고, 종료일(시작일 + 총 일수)은 그대로 둡니다(4장 4-9 #7) | 민정 |
+| ✅ `dose_conditions` 한 행 = 약 한 줄의 회차 하나이고, ID 이름은 `condition_id`입니다. 조건을 바꾼 뒤 재계산은 4장 `recalculate_schedule(db, prescription_item_id)`를 부릅니다(4장 4-9 #9·#11) | 민정 |
 | 1차 시간표가 계산하지 않는 조건(식간·공복·n시간 간격, 매일이 아닌 주기)은 인식은 하되 `needs_confirm: true`로 보내고, 확정 때는 1차 허용 값만 받습니다(6-2) | 민정 · 설아 |
 | 공공데이터에 없는 약(`drug_id: null`)도 이름 그대로 저장할 수 있게 했습니다. 이 약의 가이드는 "이 약은 안내 정보가 없어요"로 나갑니다 | 민정 · 유정 |
-| `verify_guide()` 입력·출력은 AI 문서 4-1·4-2 형식을 따릅니다. 마지막 시도에서 실패한 항목에 `fallback`을 표시하는 것까지 검증 함수가 하고, 기본 정보로 바꿔 끼우는 일은 가이드 생성 쪽에서 하는 안입니다 | 유정 |
-| 확정 후 복용 조건을 바꾸면 가이드의 `dose_times`가 시간표와 달라집니다. 가이드 조회 때 시간표 값으로 덮어 보여 주는 안을 제안합니다 | 유정 |
+| ✅ `verify_guide()`를 7장에 맞췄습니다(11/20 유정님과 합의): 칸 이름 `prescription_item_id`·`guide_id`, `kind="lifestyle"`이면 금지 표현만 검사, `user_conditions` 입력, `fallback_drug_ids` 없음(약 단위 실패는 코드 오류 → `failed`), 문장 바꾸기는 7-1 비고 표를 따름 | 유정 |
+| 1차는 다시 쓰기가 없어 `verify_guide()`에 `attempt_no`·`is_last_attempt`를 두지 않았습니다. 7-7 검증 호출에서 두 인자를 빼 주세요 | 유정 |
+| ✅ 가이드 `dose_times`는 조회 때 시간표 값으로 채웁니다(7-1 반영, 11/20). 그래서 복용 조건을 바꿔도 가이드와 어긋나지 않고, `verify_guide()`도 `dose_times`를 검사하지 않습니다 | 유정 |
+| 7-7 질문에 대한 답: 1회 용량 `min`·`max`·`parsed`는 공용 함수 `parse_dose_text()`(6-4)로 만듭니다. 확정 API·`PATCH /scans`·`get_confirmed_prescription()`이 같은 함수를 써서 결과가 어긋나지 않게 합니다 | 설아 · 유정 |
+| 5장 `get_confirmed_prescription()` 반환 형식의 `prescription_drug_id`를 6·7장과 같은 `prescription_item_id`로 맞춥니다(설아님이 4장 리뷰 답변 (10)에서 바꾸기로 함) | 설아 |
+| 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 `create_prescription()`이 저장할 때 아침·점심·저녁으로 채웁니다. 그런데 확인 화면(B-2)에서는 끼니가 비어 '확인 필요'로 보입니다. 끼니 기본값 채우기를 `calculate_schedule()`처럼 순수 함수로 빼 주시면, `GET /scans`도 같은 함수로 미리 채워 보여 주겠습니다 → 민정님 확인 | 민정 · 재경 |
+| ✅ 홈의 끼니 고르기도 `PATCH /dose-conditions/{condition_id}`를 씁니다. 끼니만 보내도 되도록 부분 수정으로 바꿨습니다. 홈의 `schedule_check_items`에 `conditions: [{condition_id, dose_no, reason}]`을 넣기로 했습니다(4장 설아님 리뷰). `reason`은 확정 응답·`ConditionToConfirm`과 같은 값입니다 | 설아 · 민정 |
+| `parsed_by` 값: 6장은 `dictionary` / `llm` / `user`이고, ERD `dose_conditions.parsed_by`에는 `rule` / `user`만 있습니다(4장 4-8 E9). `dictionary`는 `rule`로 저장해도 되지만, LLM이 해석한 조건(`dosage_v1`)을 구분하려면 ERD에 `llm` 값이 필요합니다 → 민정님 확인 | 민정 |
 
 ### 6-1. 진행 상태 (`document_status` + `step`)
 
@@ -454,8 +460,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
           "status": "candidates",
           "drug_id": null,
           "candidates": [
-            { "drug_id": 2210, "drug_name": "가상캡슐 250mg", "company_name": "가상제약", "similarity": 0.81 },
-            { "drug_id": 2211, "drug_name": "가상캡슐 500mg", "company_name": "가상제약", "similarity": 0.79 }
+            { "drug_id": 2210, "item_name": "가상캡슐 250mg", "company": "가상제약", "similarity": 0.81 },
+            { "drug_id": 2211, "item_name": "가상캡슐 500mg", "company": "가상제약", "similarity": 0.79 }
           ]
         },
         "dose_per_time": { "text": "1캡슐", "min": 1, "max": 1, "unit": "캡슐", "parsed": true, "confidence": 0.9, "needs_check": false },
@@ -490,7 +496,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   }
   ```
 
-  확정됨(`confirmed`) / 만료(`expired`)
+  확정됨(`confirmed`) / 만료(`expired`). `medical_documents`에는 `prescription_id` 칸이 없으므로 `prescription_id`는 `prescriptions.document_id`로 찾습니다(4장 `create_prescription()` 7단계).
 
   ```json
   { "scan_id": 42, "status": "confirmed", "step": null, "prescription_id": 88 }
@@ -646,7 +652,14 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     ]
   }
   ```
-  `reason`: `meal_unknown`(끼니를 모름) / `timing_unknown`(식전·식후·취침 전을 모름)
+  `reason`은 회차마다 하나입니다.
+
+  | `reason` | 언제 | 화면 |
+  | --- | --- | --- |
+  | `timing_unknown` | `timing`이 `null` (식전·식후·취침 전을 모름. 끼니도 모르는 경우 포함) | 식전·식후·취침 전과 끼니를 모두 고르게 함 |
+  | `meal_unknown` | `timing`은 식전·식후인데 `meal`이 `null` | 끼니만 고르게 함 |
+
+  예: "1일 2회 복용"만 적힌 약은 두 회차 모두 `timing_unknown`입니다.
 - 에러: `VALIDATION_ERROR`(422) 필수 칸 빈칸·잘못된 값 → [저장하기]를 막고 `fields`의 칸을 표시 / `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중·읽기 실패 / `DOCUMENT_ALREADY_CONFIRMED`(409) 이미 확정 → `GET /scans/{scan_id}`의 `prescription_id`로 처방 상세 이동 / `DOCUMENT_EXPIRED`(410) → "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요"
 
   ```json
@@ -657,12 +670,18 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   }
   ```
 - 비고:
-  - 처리 순서: ① 필수 칸 검사 → ② `create_prescription(source="ocr", medical_document_id=42, ...)` 호출(민정님 함수, 한 트랜잭션) → ③ 문서 상태 `confirmed`, `prescription_id` 저장 → ④ 원본 파일·페이지 이미지·OCR 글자·인식 결과 삭제.
-  - ④ 삭제에 실패해도 응답은 성공으로 돌려주고, 정리 작업이 다시 지웁니다. ②가 실패하면 상태는 `ocr_done`으로 남고 원본도 지우지 않으므로 회원이 다시 [저장하기]를 누를 수 있습니다.
+  - 처리 순서
+    1. 문서 행을 잠그고 상태·소유를 확인합니다(`ocr_done`이 아니면 위 에러).
+    2. `create_prescription(db, user_id, data, source="ocr", background_tasks=..., medical_document_id=42)`를 부릅니다(4장). 필수 칸 검사, 처방·시간표·복용 기록 저장, 문서 `confirmed`·`parsed_result = NULL` 처리, 가이드 행 생성이 이 함수 안에서 한 트랜잭션으로 끝납니다. 검사 실패(`PrescriptionValidationError`)는 `VALIDATION_ERROR`로 바꿔 돌려줍니다.
+    3. 이 API가 커밋합니다(4장: 커밋은 부른 API).
+    4. 커밋 뒤에 원본 파일·페이지 이미지를 지웁니다. 파일 삭제는 트랜잭션으로 되돌릴 수 없어서 커밋 뒤에 합니다.
+    5. `create_prescription()`이 돌려준 `prescription_id`, `conditions_to_confirm`을 그대로 응답합니다.
+  - 4 삭제에 실패해도 응답은 성공으로 돌려주고, 정리 작업이 다시 지웁니다. 2가 실패하면 트랜잭션이 모두 되돌려져 상태는 `ocr_done`으로 남고 원본도 지우지 않으므로 회원이 다시 [저장하기]를 누를 수 있습니다.
   - 같은 요청이 두 번 들어와도 처방이 두 번 생기지 않도록 문서 행을 잠그고 상태를 확인합니다.
-  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 처방 상세로 이동합니다. 1일 3회처럼 끼니를 기본값으로 정할 수 있는 경우는 민정님 시간표 규칙을 따르므로 이 목록에 들어가지 않습니다.
-  - 복용 기록은 확정 시각 이후 회차부터 만드는 것을 제안합니다(위 '확인할 것' 표).
+  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 처방 상세로 이동합니다. 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 아침·점심·저녁으로 채워지므로 이 목록에 들어가지 않습니다.
+  - 복용 기록은 확정 시각 이후 회차부터 만듭니다(4장 합의). 한 약에서 회차 하나라도 확인이 필요하면 그 약은 복용 기록을 만들지 않고, 모두 고른 뒤 `recalculate_schedule()`이 만듭니다.
   - `drug_id: null`인 약은 가이드에서 "이 약은 안내 정보가 없어요"로 나갑니다(VERI-003 1차 범위).
+  - ERD에는 1회 용량 중 `dose_text`만 저장합니다. Body의 `min`·`max`·`parsed`는 저장하지 않고, 조회할 때 `parse_dose_text()`(6-4)로 다시 만듭니다. 그래서 같은 `text`면 저장 전후 값이 같습니다.
 
 ### [GET] /api/v1/drugs
 - 설명: 약품명(상품명·성분명)으로 약을 검색합니다. 확인 화면의 약품 매칭 후보(`limit=3`)와 직접 입력의 약 검색(기본 10개)이 같이 씁니다.
@@ -677,39 +696,51 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   ```json
   {
     "items": [
-      { "drug_id": 1203, "drug_name": "가상정 5mg", "ingredient_name": "가상성분", "company_name": "가상제약", "has_public_data": true, "matched_by": "exact", "similarity": 1.0 },
-      { "drug_id": 1204, "drug_name": "가상정 10mg", "ingredient_name": "가상성분", "company_name": "가상제약", "has_public_data": true, "matched_by": "prefix", "similarity": 0.86 }
+      { "drug_id": 1203, "item_name": "가상정 5mg", "ingredient_name": "가상성분", "company": "가상제약", "has_public_data": true, "matched_by": "exact", "similarity": 1.0 },
+      { "drug_id": 1204, "item_name": "가상정 10mg", "ingredient_name": "가상성분", "company": "가상제약", "has_public_data": true, "matched_by": "prefix", "similarity": 0.86 }
     ]
   }
   ```
 - 에러: `VALIDATION_ERROR`(422) `q`가 비었거나 50자 초과, `limit` 범위 밖 → 프론트에서 먼저 막음
 - 비고:
-  - 자동완성이라 1번 목록 규칙(`page`·`size`·`total`)을 쓰지 않습니다(공통 규칙 예외, 민정님 확인).
-  - 검색 전에 공백·괄호를 지우고 비교합니다(예: "가상정 5mg"와 "가상정5mg"는 같음).
+  - 자동완성이라 1번 목록 규칙(`page`·`size`·`total`)을 쓰지 않습니다(1번 '목록' 규칙의 예외로 적힘).
+  - 검색 전에 공백·괄호를 지우고 단위 표기를 맞춰 비교합니다(예: "가상정 5mg"·"가상정5mg"·"가상정5밀리그램"은 같음). 공공데이터 품목명은 "mg"를 "밀리그램"(또는 "밀리그람")으로 적는 경우가 많기 때문입니다.
   - 정렬: 정확 일치(`exact`) → 앞부분 일치(`prefix`) → 이름 유사도(`similar`, pg_trgm) 순입니다. 유사도 기준은 0.3에서 시작해 가상 처방전 테스트 후 조정합니다.
   - 결과가 없으면 `{"items": []}`를 돌려줍니다. 화면에는 "검색 결과가 없어요. 약 이름 그대로 저장할 수도 있어요"를 띄웁니다.
   - OCR 약품 매칭은 HTTP를 거치지 않고 같은 검색 함수를 서버 안에서 부릅니다. 정확 일치가 1개면 `exact`, 아니면 기준 이상 상위 3개를 `candidates`, 없으면 `none`입니다.
-  - 응답 칸 이름(`drug_name`, `ingredient_name`, `company_name`)은 ERD `drugs` 컬럼이 정해지면 맞춥니다 → 민정·유정님 확인. 약 상세는 설아님의 `GET /drugs/{drug_id}`를 씁니다.
+  - 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)을 그대로 씁니다(4장 4-9 #20). `GET /scans`의 매칭 후보(`candidates[]`)도 같은 이름입니다. 확정 Body의 `drug_name`에는 고른 약의 `item_name`을 넣습니다. 약 상세는 설아님의 `GET /drugs/{drug_id}`를 씁니다.
   - 입력할 때마다 부르지 않도록 프론트에서 300ms 디바운스를 부탁드립니다.
 
 ### [PATCH] /api/v1/dose-conditions/{condition_id}
-- 설명: 처방 확정 뒤에도 '복용 조건 확인 필요'로 남은 회차의 복용 조건을 회원이 목록에서 골라 저장합니다. 저장하면 그 회차의 복용 시각과 앞으로의 복용 기록을 다시 계산합니다.
+- 설명: 처방 확정 뒤에도 '복용 조건 확인 필요'로 남은 회차의 복용 조건을 회원이 골라 저장합니다. 확인 화면(B-2)과 홈의 끼니 고르기(A-2)가 함께 씁니다. 보낸 칸만 바꾸는 부분 수정이며, 저장하면 그 회차의 복용 시각과 앞으로의 복용 기록을 다시 계산합니다.
 - 인증: 필요
 - 관련 요구사항: REQ-MED-008
-- 관련 화면: B-2 인식 결과 확인(확정 직후 이어서 고르기), C-1 처방 상세의 '확인 필요' 표시에서 진입 → 설아님 확인
+- 관련 화면: B-2 인식 결과 확인(확정 직후 이어서 고르기), A-2 홈('복용 시간 확인 필요'의 아침·점심·저녁 버튼), C-1 처방 상세의 '확인 필요' 표시에서 진입 → 설아님 확인
 - 관련 테이블: `dose_conditions`, `dose_schedules`, `intake_logs`
 - Path / Query: Path `condition_id`(`dose_conditions.id`, 약 한 줄의 회차 하나)
-- Request Body:
+- Request Body: 바꿀 칸만 보냅니다. 보내지 않은 칸은 저장된 값을 그대로 둡니다.
+
+  B-2에서 모두 고를 때(`timing_unknown`)
 
   ```json
   { "meal": "breakfast", "timing": "after_meal", "offset_min": 30 }
   ```
 
+  홈에서 끼니만 고를 때(`meal_unknown`)
+
+  ```json
+  { "meal": "breakfast" }
+  ```
+
   | 칸 | 규칙 |
   | --- | --- |
   | `timing` | `after_meal`(식후 n분) / `before_meal`(식전 n분) / `bedtime`(취침 전) |
-  | `meal` | 식전·식후면 `breakfast` / `lunch` / `dinner` 필수, 취침 전이면 `null` |
-  | `offset_min` | 식전·식후면 0~120 필수, 취침 전이면 `null` |
+  | `meal` | `breakfast` / `lunch` / `dinner`. 취침 전이면 `null` |
+  | `offset_min` | 식전·식후 몇 분(0~120). 취침 전이면 `null` |
+
+  합친 결과(저장된 값 + 보낸 칸)가 아래를 모두 채우면 확인이 끝나고(`needs_confirm: false`), 아니면 '확인 필요'로 남습니다.
+  - 식전·식후: `meal`, `offset_min` 모두 있음
+  - 취침 전: `meal`·`offset_min` 없음
 - Response Body (200):
 
   ```json
@@ -727,82 +758,107 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   }
   ```
   `remaining_to_confirm`은 같은 처방에서 아직 확인이 필요한 회차 수입니다. `0`이 되면 처방 상세로 이동합니다.
-- 에러: `NOT_FOUND`(404) 없는 조건·다른 회원의 조건 / `VALIDATION_ERROR`(422) 위 규칙 위반 → 해당 칸 표시
+  홈에서 끼니만 골랐는데 `timing`도 비어 있으면 `needs_confirm: true`, `dose_time: null`로 돌아옵니다. 이때는 "식전·식후도 골라 주세요"와 함께 처방 상세(C-1)로 보내 주세요.
+- 에러: `NOT_FOUND`(404) 없는 조건·다른 회원의 조건 / `VALIDATION_ERROR`(422) 칸 값이 위 목록에 없음, 빈 Body → 해당 칸 표시
 - 비고:
   - 1차에 고를 수 있는 조건은 직접 입력(MED-001)과 같습니다. 식간·공복·n시간 간격은 2차입니다.
   - '필요시'는 약 단위 조건이라 이 API로 바꾸지 않습니다. 1차에는 확정 전에 B-2에서 고릅니다.
   - 이미 확인이 끝난 조건도 다시 고칠 수 있습니다.
-  - 저장 후 시간표·복용 기록 재계산은 민정님 함수(예: `recalculate_schedule(prescription_item_id)`)를 부릅니다. 오늘 이후의 `pending` 기록만 바꾸고 `taken` 기록은 그대로 둡니다 → 민정님 확인.
-  - `dose_time`은 그 함수가 계산한 값을 그대로 돌려줍니다. 가이드의 `dose_times`와 달라질 수 있어 유정님과 맞춥니다('확인할 것' 표).
+  - 저장 후 4장 `recalculate_schedule(db, prescription_item_id)`를 부르고, 조건 변경과 함께 이 API가 커밋합니다. 지금 이후의 `pending` 기록만 바꾸고 `taken`·`missed`는 그대로 둡니다. 응답의 `dose_time`·`remaining_to_confirm`은 이 함수가 돌려준 값입니다.
+  - 같은 약의 다른 회차가 아직 확인 필요면 `dose_time`은 계산되지만 복용 기록은 아직 만들지 않습니다(4장 규칙). 마지막 회차를 고르면 그때 만들어집니다.
+  - 1일 2회처럼 회차가 여러 개면 회차마다 따로 부릅니다. 화면에서 "아침·저녁" 버튼 하나로 보여 줘도 프론트가 회차별로 호출합니다.
+  - `dose_time`은 그 함수가 계산한 값을 그대로 돌려줍니다. 가이드는 조회할 때 시간표 값으로 시각을 채우므로(7-1) 따로 맞출 필요가 없습니다.
 
 ### [내부] verify_guide()
-- 설명: AI B가 만든 가이드(생성본 1개)를 확정 처방·시간표와 규칙으로 대조해 통과 여부와 실패 사유를 돌려줍니다. LLM을 부르지 않습니다. 재시도 횟수는 세지 않고, 몇 번째 생성본인지만 기록합니다(AI 문서 C4).
+- 설명: AI B가 만든 가이드 하나를 규칙으로 검사해 통과 여부와 틀린 문장을 돌려줍니다. 복약 가이드와 생활습관 가이드를 같은 함수로 검사하고, `kind`에 따라 검사 규칙만 달라집니다. LLM을 부르지 않습니다.
 - 인증: 해당 없음(서버 안에서 호출)
 - 관련 요구사항: REQ-VERI-001, REQ-VERI-002, REQ-VERI-003(1차 최소 범위), REQ-VERI-004, REQ-VERI-005
 - 관련 화면: D-2 가이드 보기('확인 필요' 표시)
 - 관련 테이블: `drugs`(공공데이터 여부 조회). 검증 결과 저장(`guide_attempts`)은 2차이며, 1차는 서버 로그에만 남깁니다
-- 호출하는 곳: AI B 가이드 생성(`start_guide_generation()` 안, 가이드를 만든 직후)
+- 호출하는 곳: 7-7 `run_guide_generation(guide_id)`의 5단계(`status = verifying`). 복약·생활습관 가이드마다 한 번씩 부릅니다
 - 입력:
 
   ```python
   def verify_guide(
-      guide: dict,                       # AI 문서 4-1 가이드 JSON (생성본 1개)
-      prescription: dict,                # get_confirmed_prescription() 반환값 (복용 시각 포함)
+      guide: dict,                       # 7-1 content (복약 또는 생활습관 가이드 1개)
+      prescription: dict,                # get_confirmed_prescription() 반환값
       *,
-      guide_id: int,
-      attempt_no: int,                   
-      is_last_attempt: bool = False,     # 1차는 attempt_no=1, is_last_attempt=True로만 호출. 여러 번 시도·15초 한도(803줄)는 2차
-      user_conditions: list[str] | None = None,           # 기저질환 (VERI-004 ⓒ 진단 단정 검사)
-      retrieved_doc_ids: dict[int, list[str]] | None = None,  # prescription_item_id → 이번 검색 doc_id (2차 VERI-003)
-  ) -> dict: ...                         # AI 문서 4-2 검증 결과
+      guide_id: int,                     # guides.id (실패해도 행이 남으므로 이 ID를 씀)
+      kind: str = "medication",          # "medication" / "lifestyle"
+      user_conditions: list[str] | None = None,  # 건강 프로필의 기저질환 (VERI-004 ⓒ 질환 단정 검사)
+  ) -> dict: ...
   ```
 - 출력:
 
+  복약 가이드(`kind="medication"`)
+
   ```json
   {
-    "guide_id": 77,
+    "guide_id": 9001,
+    "kind": "medication",
     "passed": false,
     "fail_reasons": [
-      { "type": "value_mismatch", "drug_name": "가상정 5mg", "prescription_item_id": 501, "item_id": null, "detail": "times_per_day 2 ≠ 처방 3" },
-      { "type": "forbidden", "drug_name": "가상정 5mg", "prescription_item_id": 501, "item_id": "d1-c2", "detail": "복용 중단 권유 표현" }
+      { "type": "forbidden", "drug_name": "가상캡슐", "prescription_item_id": 502, "item_id": "d1-h1", "detail": "복용 중단 권유 표현" }
     ],
-    "item_checks": {},
-    "fallback_drug_ids": [],
-    "attempt_no": 1,
+    "item_checks": { "d1-h1": "fallback" },
     "rules_version": "verify_rules_v1",
-    "prompt_version": "guide_medication_v1",
     "duration_ms": 180,
     "checked_at": "2026-11-20T18:30:05+09:00"
   }
   ```
 
-  `is_last_attempt=True`이고 실패하면:
+  생활습관 가이드(`kind="lifestyle"`)
 
   ```json
   {
+    "guide_id": 9002,
+    "kind": "lifestyle",
     "passed": false,
-    "item_checks": { "d1-c2": "fallback" },
-    "fallback_drug_ids": [501]
+    "fail_reasons": [
+      { "type": "forbidden", "drug_name": null, "prescription_item_id": null, "item_id": "l-e1", "detail": "복용 변경 권유 표현" }
+    ],
+    "item_checks": { "l-e1": "fallback" },
+    "rules_version": "verify_rules_v1",
+    "duration_ms": 60,
+    "checked_at": "2026-11-20T18:30:05+09:00"
   }
   ```
-  (나머지 칸은 위와 같음)
 
-- 1차 검사 규칙(AI 문서 11-2):
+  | 칸 | 설명 |
+  | --- | --- |
+  | `passed` | 틀린 곳이 하나도 없으면 `true` → `completed` |
+  | `fail_reasons[]` | `{type, drug_name, prescription_item_id, item_id, detail}`. 생활습관은 약에 속하지 않아 `drug_name`·`prescription_item_id`가 `null`. 약 단위 실패(아래 표의 `item_id`가 없는 실패)는 `item_id: null` |
+  | `item_checks` | 틀린 문장(`item_id`)마다 `"fallback"`. 가이드 생성 쪽이 7-1 비고 표대로 문장을 바꾸거나(복약) 빼고(생활습관) `check` 칸에 넣습니다 |
+- 검사 규칙(1차, AI 문서 11-2):
 
-  | 규칙 | 무엇을 | 실패 `type` |
-  | --- | --- | --- |
-  | VERI-001 원문 대조 | `dose_per_time`·`times_per_day`·`total_days`·`dose_times[]`를 `prescription_item_id`로 짝지어 비교. 용량은 AI 문서 4-9 방식 | `value_mismatch`, `missing_value` |
-  | VERI-001 글 속 숫자 | `easy_text` 안의 숫자·'하루 두 번' 같은 표현. 처방 용량이 `parsed: false`인데 용량 숫자가 나오면 실패 | `text_number_mismatch` |
-  | VERI-002 빠진 약 | 가이드 `drugs[]`의 `prescription_item_id` 집합이 처방과 같은지 | `missing_drug` |
-  | VERI-003 1차 | `has_public_data`를 약품 DB로 다시 판정. `false`인 약에 주의사항·부작용·병원 방문 항목이 있으면 실패 | `no_source` |
-  | VERI-004 금지 표현 | ⓐ 복용 중단·용량 변경·약 대체 권유 ⓑ 처방에 없는 약 이름 ⓒ 기저질환에 없는 질환을 단정하는 표현. 공공데이터 원문 인용·병원 방문 고정 문구는 예외 | `forbidden`, `unknown_drug` |
-- 에러: 규칙 위반은 예외를 던지지 않고 `passed: false`로 돌려줍니다. 가이드 JSON 모양이 깨졌으면 `missing_value`로 돌려줍니다. 함수 내부 오류만 예외(`VerifyError`)를 던지며, 이때 호출하는 쪽은 AI 오류 1회로 셉니다.
+  | 규칙 | 복약 | 생활습관 | 무엇을 | 실패 `type` |
+  | --- | --- | --- | --- | --- |
+  | VERI-001 원문 대조 | O | X | `dose_per_time`·`times_per_day`·`total_days`·`easy_text`가 확정 처방과 같은지(`prescription_item_id`로 짝지음). 코드 틀로 채우므로 코드가 맞게 복사했는지 보는 안전망입니다 | `value_mismatch`, `text_number_mismatch`, `missing_value` |
+  | VERI-002 빠진 약 | O | X | 가이드 `drugs[]`의 `prescription_item_id`가 처방과 같은지 | `missing_drug` |
+  | VERI-003 1차 | O | X | `has_public_data`를 약품 DB로 다시 판정. `false`인 약에 주의사항·부작용·병원 방문 문장이 있으면 실패 | `no_source` |
+  | VERI-004 금지 표현 | O | O | LLM이 쓴 문장에서 ⓐ 복용 중단·용량 변경·약 대체 권유 ⓑ 처방에 없는 약·건강기능식품 이름 ⓒ `user_conditions`에 없는 질환을 가진 것처럼 단정하는 표현 ⓓ 약의 용량·횟수 숫자(숫자는 코드 틀만 씀). 공공데이터 원문 인용·병원 방문 고정 문구는 예외 | `forbidden`, `unknown_drug` |
+
+  - `dose_times`는 7-1에서 조회할 때 시간표 값으로 채우므로 검사하지 않습니다.
+  - "하루 30분 걷기"처럼 약과 상관없는 숫자는 ⓓ에 걸리지 않습니다.
+- 에러: 규칙 위반은 예외를 던지지 않고 `passed: false`로 돌려줍니다. 가이드 JSON 모양이 깨졌으면 `missing_value`로 돌려줍니다. 함수 내부 오류만 예외(`VerifyError`)를 던지며, 이때 가이드 생성 쪽은 `failed`로 처리합니다.
 - 비고:
-  - 1차의 `item_checks`는 `fallback`만 채웁니다(빈 값이면 화면 표시 안 함). `verified`·`needs_check`는 2차(VERI-006)입니다.
-  - `fallback_drug_ids`는 AI 문서 4-2에 없는 칸으로 새로 제안합니다. 약 단위 실패(`item_id: null`: 숫자 불일치, 빠진 약)가 남은 약의 ID이며, 가이드 생성 쪽이 그 약의 설명을 약 기본 정보(MED-003) + "이 부분은 의사·약사에게 확인해 주세요"로 바꿔 끼웁니다 → 유정님 확인.
-  - 목표 시간: 1건 1초(내부 목표), 5초 이내(NFR-014). 15초 한도 안에 검사 시간이 포함되므로 `duration_ms`를 꼭 채웁니다.
-  - 금지 표현·약 이름 목록은 AI B의 응급·범위 밖 목록과 같은 단어 검사 기능을 씁니다(AI 문서 C6).
+  - 1차는 다시 쓰기가 없어서(1차 축소안) 검사는 가이드마다 한 번뿐이고, 틀린 문장에는 항상 `fallback`을 표시합니다. 그래서 `attempt_no`·`is_last_attempt` 입력은 두지 않습니다. 7-7 검증 호출에서도 두 인자를 빼 주세요 → 유정님 확인. 다시 쓰기는 2차에 `attempt_no`와 함께 추가합니다.
+  - 약 단위 실패(`value_mismatch`·`text_number_mismatch`·`missing_value`·`missing_drug`)는 코드 틀 때문에 생기지 않아야 합니다. 생기면 7-7 합의대로 코드 오류로 기록하고 그 가이드를 `failed`로 처리합니다. 그래서 약 단위 대체 칸(`fallback_drug_ids`)은 두지 않습니다.
+  - 문장을 무엇으로 바꾸는지는 7-1 비고 표를 따릅니다. 검증 함수는 표시만 하고 글은 바꾸지 않습니다.
+  - 칸 이름은 7장에 맞췄습니다(AI 문서 4-2의 `prescription_drug_id` → `prescription_item_id`, `guide_job_id` → `guide_id`). 근거 출처 대조(VERI-003 2차)는 7장의 `rag_document_id`를 씁니다.
+  - 목표 시간: 1건 1초(내부 목표), 5초 이내(NFR-014). 7-7의 30초 안에 검사 시간이 포함되므로 `duration_ms`를 꼭 채웁니다.
+  - 1차 측정용으로 가이드마다 검사 시간·실패 종류·프롬프트 버전(`guide_medication_v1` / `guide_lifestyle_v1`)을 서버 로그에 남깁니다.
+  - 금지 표현·약 이름 목록은 `check_full()`(6-4)과 같은 규칙 파일(`verify_rules_v1`)을 씁니다.
 
+### 6-4. 다른 파트가 부르는 AI A 함수
+
+API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력만 적고, 세부 규칙은 구현하면서 이 표를 고칩니다.
+
+| 함수 | 부르는 곳 | 입력 → 출력 | 1차 범위 |
+| --- | --- | --- | --- |
+| `parse_dose_text(text)` | 6장 `PATCH /scans`·확정 API, 5장 `get_confirmed_prescription()`(설아) | `"1/2정"` → `{"text": "1/2정", "min": 0.5, "max": 0.5, "unit": "정", "parsed": true}` | 표현 사전(`dosage_dict_v1`)만 씁니다. ERD에는 `dose_text`만 저장되므로 조회할 때 이 함수로 다시 만듭니다(7-7 비고). 같은 글자면 항상 같은 결과입니다. 읽을 수 없으면 `min`·`max`·`unit`이 `null`, `parsed: false` |
+| `mask_text(text)` | 6장 OCR 글자(LLM에 넘기기 전), 7-6 챗봇 질문(저장 전) | 글자 → 가린 글자(`[주민번호]`, `[연락처]`, `[이메일]`, `[환자번호]`, `[면허번호]`) | 규칙(정규식)으로 가립니다. 이름은 처방전의 '성명' 칸처럼 위치로 알 수 있을 때만 `[이름]`으로 가리고, 챗봇 질문 속 이름은 1차에 가리지 않습니다 |
+| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | VERI-004 ⓐⓑⓒ 검사. 질문에 나온 약은 처방에 없어도 실패로 보지 않습니다. 결과는 `chat_messages.check_result`에 **기록만** 하고 화면에는 보내지 않습니다(정정 안내는 2차 VERI-007). 답변 문장은 결과에 다시 담지 않습니다. 오류가 나도 호출하는 쪽은 답변을 막지 않습니다 |
 
 <!-- 채민 END -->
 
@@ -1169,3 +1225,4 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 2026-11-20 | 유정 | 7장 검증 흐름 반영(채민님 코멘트): `easy_text` 코드 틀, `fallback` 문장 바꾸기 규칙, 생활습관 `kind="lifestyle"`·항목 빼기, 챗봇 `check_full()` 기록만 |
 | 2026-11-20 | 유정 | 7장 리뷰 반영: `failed`·30초 기준 확정 표시, 가이드 `dose_times`는 조회 때 시간표 값으로 채움(채민님 제안), 생활습관 가이드 검증 확인 요청 추가 |
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
+| 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
