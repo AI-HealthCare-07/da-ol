@@ -204,8 +204,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 처방 저장 함수 | 민정 | `create_prescription()` 하나로 처방·약·복용 조건 저장, 기본 일과로 `dose_schedules` 계산, `intake_logs` 생성, `start_guide_generation()` 호출까지 한 번에 처리합니다. OCR 확정과 직접 입력이 모두 이 함수를 부르므로 저장 로직이 두 벌로 갈라지지 않습니다 |
 | 공공데이터 `drugs` 적재 | 유정 | RAG용 e약은요 데이터를 받을 때 `drugs` 테이블에도 함께 넣습니다. 같은 데이터를 두 번 받지 않도록 한 파이프라인으로 처리합니다 |
 | 개인정보 가리기 함수 | 채민 | `mask_text()`: OCR 결과·챗봇 질문을 저장하거나 LLM에 보내기 전에 이름·주민등록번호·환자번호·면허번호·연락처를 가립니다(NFR-004). OCR(6장)과 챗봇(7-6)이 같은 함수를 씁니다 |
-| 백엔드 배포 | 민정 | EC2 + Docker Compose (NFR-007) |
-| 프론트 배포 | 설아 | 프론트는 백엔드와 따로 배포합니다(Vercel 등). 백엔드 주소 연결 방식은 민정님과 맞춥니다 |
+| 백엔드 배포 | 민정 | EC2 + Docker Compose (NFR-007). 프론트가 Vercel rewrites로 `/api/*`를 넘겨받는 구조라 CORS credentials 설정은 하지 않습니다(4-1) |
+| 프론트 배포 | 설아 | Vercel. `vercel.json` rewrites로 `/api/:path*`를 EC2 주소로 넘겨 같은 주소처럼 씁니다(4-1). 로컬 개발도 개발 서버 프록시로 같은 방식을 씁니다. 첫 배포 때 30MB 업로드·챗봇 SSE가 프록시를 통과하는지 테스트하고, 막히면 4-1 Plan B로 바꿉니다 |
 
 ---
 
@@ -247,10 +247,11 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 
 | 항목 | 값 |
 | --- | --- |
-| 쿠키 | `refresh_token=...; HttpOnly; Secure; SameSite=None; Path=/api/v1/auth; Max-Age=1209600`(14일) |
+| 쿠키 | `refresh_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=1209600`(14일). `Domain`은 넣지 않습니다(호스트 전용 쿠키). 브라우저는 HTTPS인 Vercel 주소와 통신하므로 EC2가 HTTP여도 `Secure` 쿠키가 동작합니다 |
 | 액세스 토큰 | 응답 본문 `access_token`. 프론트는 메모리에만 보관하고 localStorage에 저장하지 않습니다 |
 | 서버 저장 | `refresh_tokens.token_hash`(SHA-256), `expires_at`(14일), `revoked_at`(무효화 시각) |
-| 교차 도메인 | 프론트(Vercel)와 백엔드(EC2) 도메인이 달라서 `SameSite=None`이 필요합니다. 백엔드 CORS `allow_credentials=True` + 허용 Origin 명시, 프론트 요청에 `credentials: "include"`가 있어야 쿠키가 오갑니다 → 설아님 확인 |
+| 배포 구조 | 프론트(Vercel)가 `/api/*` 요청을 rewrites로 EC2에 넘깁니다. 브라우저에는 같은 주소로 보여서 쿠키가 퍼스트파티가 되므로 `SameSite=Lax`로 충분하고, CORS `allow_credentials`·`credentials: "include"` 설정이 필요 없습니다. 프론트는 API를 상대 경로(`/api/v1/...`)로 부릅니다. `SameSite=None` 교차 사이트 쿠키는 사파리가 기본으로 막고 크롬도 막는 쪽이라 쓰지 않습니다(설아님 제안, 11/23) |
+| 대안(Plan B) | 첫 배포 때 30MB 업로드(6장)와 챗봇 SSE(7-6)가 프록시를 통과하지 못하면 도메인을 사서 화면 `daol.site`(Vercel), 서버 `api.daol.site`(EC2 + HTTPS)로 나눕니다. 두 주소는 같은 사이트라 `SameSite=Lax`는 유지되지만 출처(origin)가 달라서 백엔드 CORS `allow_credentials=True` + 허용 Origin 명시 + 프론트 `credentials: "include"`가 다시 필요합니다. 카카오 개발자 콘솔의 Redirect URI도 새 도메인으로 바꿉니다 |
 
 ### [POST] /api/v1/auth/kakao
 - 설명: 카카오 인가 코드로 로그인합니다. 처음 온 카카오 계정이면 회원을 만든 뒤 로그인합니다.
@@ -285,7 +286,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 닉네임(`users.nickname`, 2~10자, unique)이 이미 있으면 뒤에 무작위 4자리(영문 소문자·숫자)를 붙입니다. 붙인 결과가 10자를 넘으면 카카오 닉네임 앞부분을 6자로 자르고 붙입니다. 카카오 닉네임이 1자면 무작위 4자리를 붙여 2자 이상으로 만듭니다.
   - 카카오 동의 화면에서 취소하면 카카오가 `error=access_denied`로 돌려보냅니다. 이때 프론트는 이 API를 부르지 않고 "카카오 로그인이 취소되었어요"를 보여줍니다.
   - 탈퇴 판정: `users.status = withdrawn`이고 `withdrawn_at` + 30일이 지나지 않았으면 `REJOIN_RESTRICTED`입니다. 30일 뒤에는 행이 영구 삭제되므로 같은 카카오 계정이 새 회원으로 가입됩니다. 탈퇴 기능(REQ-USER-011)은 2차지만 이 판정은 1차에 둡니다.
-  - 1차 ERD에는 프로필 이미지 칸, `talk_message` 동의 값, 카카오 토큰 칸이 없어서 셋 다 저장하지 않습니다(4-8). 카카오톡 알림(REQ-NOTI-005, 2차)을 붙일 때 함께 추가합니다.
+  - 1차 ERD에는 프로필 이미지 칸, `talk_message` 동의 값, 카카오 토큰 칸이 없어서 셋 다 저장하지 않습니다(4-8). 1차 카카오 동의 항목에서는 `talk_message`를 뺍니다(11/23 결정, 4-8 E4). 카카오톡 알림(REQ-NOTI-005, 2차)을 붙일 때 알림 설정에서 추가 동의를 받습니다.
   - 파트너 간단 가입(3차)은 `signup_type`이 생길 때 이 API에 추가합니다.
 
 ### [POST] /api/v1/auth/refresh
@@ -305,7 +306,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 - 에러: `REFRESH_TOKEN_EXPIRED`(401) 쿠키 없음·만료·무효화·탈퇴 회원 → "로그인이 만료되었습니다" 후 로그인 페이지
 - 비고:
   - 쓴 리프레시 토큰은 바로 `revoked_at`을 채웁니다. 이미 무효화된 토큰이 다시 들어오면 탈취로 보고 그 회원의 리프레시 토큰을 모두 무효화합니다.
-  - 프론트 흐름: `UNAUTHORIZED`(401) → 재발급 1회 → 성공하면 원래 요청을 다시 보냅니다. 여러 요청이 동시에 401을 받으면 재발급은 한 번만 부르고 나머지는 그 결과를 기다리게 해 주세요. 회전 방식이라 두 번 부르면 두 번째가 실패합니다 → 설아님 확인
+  - 프론트 흐름: `UNAUTHORIZED`(401) → 재발급 1회 → 성공하면 원래 요청을 다시 보냅니다. 여러 요청이 동시에 401을 받으면 재발급은 한 번만 부르고 나머지는 그 결과를 기다리게 해 주세요. 회전 방식이라 두 번 부르면 두 번째가 실패합니다. 프론트가 재발급 요청을 하나로 묶어(single-flight) 처리합니다(설아님 확인, 11/23)
   - 재발급이 `REFRESH_TOKEN_EXPIRED`이면 다시 재발급하지 않습니다(무한 반복 방지).
   - `users.status = withdrawn`인 회원은 `REFRESH_TOKEN_EXPIRED`입니다.
 
@@ -317,7 +318,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 - 관련 테이블: `refresh_tokens`
 - Path / Query: 없음
 - Request Body: 없음
-- Response Body (204): 본문 없음. `Set-Cookie: refresh_token=; Max-Age=0; Path=/api/v1/auth`로 쿠키를 지웁니다.
+- Response Body (204): 본문 없음. `Set-Cookie: refresh_token=; Max-Age=0; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Lax`로 쿠키를 지웁니다.
 - 에러: `UNAUTHORIZED`(401) → 재발급 후 다시 시도, 재발급도 실패하면 이미 로그아웃된 것으로 보고 메인 페이지로
 - 비고:
   - 쿠키가 없거나 이미 무효화된 토큰이어도 204를 돌려줍니다. 여러 번 눌러도 결과가 같습니다.
@@ -328,7 +329,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 - 설명: 로그인한 회원의 정보입니다. 앱을 처음 열 때 추가 정보 입력 화면으로 보낼지 판단하는 데도 씁니다.
 - 인증: 필요(`PROFILE_REQUIRED` 예외 API)
 - 관련 요구사항: REQ-USER-008, REQ-USER-002
-- 관련 화면: E-1 내 정보, 앱 시작 시 라우팅
+- 관련 화면: E-1 내 정보, 앱 시작 시 라우팅(프론트가 앱 시작 때 이 API로 추가 정보 입력 화면 / 홈을 고릅니다)
 - 관련 테이블: `users`
 - Path / Query: 없음
 - Request Body: 없음
@@ -378,7 +379,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | 필드 | 규칙 |
   | --- | --- |
   | `name` | 필수, 앞뒤 공백 제거 후 1~20자 |
-  | `birth_date` | 필수, `YYYY-MM-DD`, 1900-01-01 ~ 오늘 |
+  | `birth_date` | 필수, `YYYY-MM-DD`, 1900-01-01 ~ 오늘. 만 14세 미만이면 `VALIDATION_ERROR`(`fields.birth_date`: "만 14세 이상만 가입할 수 있어요") |
   | `gender` | 필수, `male / female` |
   | `consents` | `consent_type` 3종(`terms` 이용약관 / `privacy` 개인정보 수집·이용 / `sensitive_health` 민감정보(건강정보) 수집·이용)이 모두 `agreed: true`여야 합니다 |
 - Response Body (200): `GET /users/me`와 같은 형식이며 `is_profile_completed`가 `true`입니다.
@@ -387,13 +388,13 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - `users`의 이름·생년월일·성별 저장, `user_consents` 3행 저장, `users.is_profile_completed = true`를 한 트랜잭션으로 처리합니다. `user_consents`는 (회원, 동의 종류)가 unique라 동의 종류마다 한 행입니다.
   - 이름·생년월일·성별은 이후 수정할 수 없으므로(REQ-USER-009) 두 번째 호출은 409로 막습니다.
   - 동의 일시는 `user_consents.agreed_at`(서버 시각)입니다. 약관 버전을 저장할 칸은 ERD에 없습니다(4-8).
-  - 만 14세 미만 처리 방식은 4-9 참고.
+  - 만 14세 미만은 법정대리인 동의가 필요해서 1차는 가입을 막습니다(4-9 13). 나이는 KST 오늘 날짜와 `birth_date`로 계산합니다.
 
 ### [GET] /api/v1/users/me/health-profile
 - 설명: 건강 프로필을 조회합니다. 아직 입력하지 않았으면 404가 아니라 `is_registered: false`와 빈 값을 돌려줍니다. 404는 '없거나 다른 회원의 데이터'라는 뜻으로만 씁니다.
 - 인증: 필요
 - 관련 요구사항: REQ-USER-010
-- 관련 화면: E-2 건강 프로필, 처방 등록 전 '건강 프로필 입력' 팝업 판단
+- 관련 화면: E-2 건강 프로필, '건강 프로필 입력' 팝업 판단(처방 저장 API를 부르기 전에 띄움, 11/23 설아님 동의)
 - 관련 테이블: `health_profiles`, `user_conditions`
 - Path / Query: 없음
 - Request Body: 없음
@@ -512,7 +513,17 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       { "prescription_item_id": 1303, "drug_name": "햇살정", "dose_text": "1정", "condition_label": "필요시 (하루 최대 3회)" }
     ],
     "schedule_check_items": [
-      { "prescription_item_id": 1304, "drug_name": "물방울정", "dose_text": "1정", "condition_label": "1일 2회 식후 30분", "schedule_status": "needs_check" }
+      {
+        "prescription_item_id": 1304,
+        "drug_name": "물방울정",
+        "dose_text": "1정",
+        "condition_label": "1일 2회 식후 30분",
+        "schedule_status": "needs_check",
+        "conditions": [
+          { "condition_id": 5014, "dose_no": 1, "reason": "meal_unknown", "timing": "after_meal", "offset_min": 30 },
+          { "condition_id": 5015, "dose_no": 2, "reason": "meal_unknown", "timing": "after_meal", "offset_min": 30 }
+        ]
+      }
     ],
     "day_summary": { "log_date": "2026-11-20", "done_count": 2, "total_count": 4 },
     "flower": { "bloomed": false }
@@ -523,9 +534,12 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - `slots`는 `intake_logs.scheduled_time`(그날 복용 시각 스냅샷)이 같은 기록끼리 묶습니다. 30분 이내 묶음(REQ-MED-009)은 2차이며, 그때 묶는 기준만 바뀝니다.
   - `drug_name`은 표시용 값입니다. `drug_id`가 있으면 `drugs.item_name`, 없으면 `prescription_items.drug_name_raw`입니다. `dose_text`는 `intake_logs.dose_text`(그날 용량 스냅샷)입니다.
   - `log_date`는 ERD상 '기상 ~ 다음 기상 전' 하루지만, 1차는 기본 일과(기상 07:00, 취침 23:00)라 KST 달력 날짜와 같습니다.
-  - 지난 날짜의 `pending`은 `missed`로 바꿉니다. 스케줄러 없이 이 API와 PATCH가 불릴 때 오늘 이전 `pending`을 `missed`로 갱신합니다. 2차에 알림 스케줄러가 생기면 자정 작업으로 옮깁니다. `/home/today`도 같은 함수를 쓰면 요일 완료율이 맞습니다 → 설아님 확인
-  - 필요시 약(`as_needed_items`)은 1차에서 목록만 보여줍니다. ERD `intake_logs`에는 필요시 체크용 칸(`is_as_needed`, `scheduled_time = NULL`)이 있지만, 체크할 때 기록을 새로 만드는 API가 1차 목록에 없습니다(4-9).
-  - `schedule_check_items`는 `dose_schedules.status = needs_check`인 약입니다. 복용 기록이 없으며, 회원이 `PATCH /dose-conditions/{condition_id}`(6장)로 조건을 고르면 `recalculate_schedule()`이 시간표와 기록을 만듭니다.
+  - 지난 날짜의 `pending`은 `missed`로 바꿉니다. 스케줄러 없이 이 API와 PATCH가 불릴 때 오늘 이전 `pending`을 `missed`로 갱신합니다. 2차에 알림 스케줄러가 생기면 자정 작업으로 옮깁니다. `/home/today`도 같은 함수를 씁니다(설아님 확인, 11/23)
+  - 필요시 약(`as_needed_items`)은 1차에서 목록만 보여주고 체크하지 않습니다(11/23 확정, 4-9 6). ERD `intake_logs`의 필요시 체크용 칸(`is_as_needed`, `scheduled_time = NULL`)은 2차에 `POST /intakes`를 만들 때 씁니다.
+  - `schedule_check_items`는 `dose_schedules.status = needs_check`인 약입니다. 복용 기록이 없습니다. 홈에서 바로 끼니를 고르게 하므로(11/20 설아·채민 결정) 약마다 확인이 필요한 회차를 `conditions`에 담습니다.
+  - `conditions`에는 `needs_check`인 회차만 `dose_no` 순으로 담습니다. `reason`은 `create_prescription()`의 `ConditionToConfirm.reason`과 같은 값입니다: `dose_conditions.condition_type`이 `NULL`이면 `timing_unknown`, 식전·식후인데 `meal`이 `NULL`이면 `meal_unknown`. `timing`·`offset_min`은 지금 저장된 값입니다(`timing_unknown`이면 둘 다 `null`).
+  - 홈은 회차마다 `PATCH /dose-conditions/{condition_id}`(6장)를 따로 부릅니다. `meal_unknown`은 끼니만 고르고 `timing`·`offset_min`은 받은 값을 그대로 보냅니다. `timing_unknown`은 6장 PATCH 규칙대로 조건 전체(식전·식후·취침 전)를 골라야 합니다 → 홈 화면 처리 설아님 확인
+  - 한 약의 회차를 모두 고르면 `recalculate_schedule()`이 시간표와 복용 기록을 만들어 그 약이 `slots`로 옮겨갑니다. 홈은 PATCH 응답 뒤 이 API(또는 `/home/today`)를 다시 불러 화면을 갱신합니다.
   - `condition_label`은 서버가 `dose_conditions`로 만든 표시용 문구입니다. 프론트는 그대로 보여줍니다.
 
 ### [PATCH] /api/v1/intakes/{intake_id}
@@ -632,13 +646,13 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | `prescribed_date` | 선택 | 직접 입력은 보통 `null` |
   | `memo` | 선택 | 0~500자(직접 입력만) |
   | `drugs` | 필수 | 1~20개 |
-  | `drug_id` | 선택 | `GET /drugs?q=` 검색 결과에서 고른 약. 검색에 없는 약은 `null`로 이름만 저장(6장 `GET /drugs` 안내와 같음) |
+  | `drug_id` | 선택 | `GET /drugs?q=` 검색 결과에서 고른 약. 검색에 없는 약은 `null`로 이름만 저장(6장 `GET /drugs` 안내와 같음). 화면은 "검색 결과가 없어요 → 이름 그대로 저장" 버튼을 OCR과 같게 둡니다(11/23 설아님 확인) |
   | `drug_name` | 필수 | 1~200자. `drug_id`가 있으면 그 약의 `drugs.item_name`으로 저장합니다 |
   | `dose_per_time` | 필수 | 직접 입력은 숫자 하나라 `min = max`(0보다 큰 수, 소수 셋째 자리까지), `unit` 1~10자, `parsed: true`. `text`를 비우면 서버가 `min` + `unit`으로 채웁니다(예: `1정`) |
   | `times_per_day` | 필수 | 1~4. 필요시 약은 하루 최대 횟수 |
   | `total_days` | 필수 | 1~365 |
   | `dosage.parsed_by` | 필수 | 직접 입력은 `user` |
-  | `dosage.as_needed` | 필수 | `true`면 `doses`는 빈 배열 |
+  | `dosage.as_needed` | 필수 | `true`면 `doses`는 빈 배열. 필요시는 약 단위 조건이라 화면에서도 회차별 칩이 아닌 약 단위 '필요 시' 토글로 받습니다(11/23 설아님 확인) |
   | `dosage.doses` | 필수 | `as_needed: false`면 `times_per_day`개, `dose_no`는 1부터 차례로 |
   | `doses[].timing` | 필수 | `after_meal`(식후 n분) / `before_meal`(식전 n분) / `bedtime`(취침 전). 직접 입력은 `null` 불가 |
   | `doses[].meal` | 식전·식후만 | `breakfast / lunch / dinner`. 한 약 안에서 같은 끼니는 한 번만. 취침 전은 `null` |
@@ -705,9 +719,9 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - `end_date`는 ERD에 칸이 없어 `start_date + total_days − 1`로 계산해서 내려줍니다.
   - `schedule_status`는 ERD `schedule_status`(`ok / needs_check`) 값을 약 단위로 모은 것입니다. 회차 하나라도 `needs_check`이면 `needs_check`, 필요시 약은 시간표가 없어 `null`입니다.
   - 가이드 행 2개(`medication`, `lifestyle`)는 처방과 같은 트랜잭션에서 `generating`으로 만들어지고, 생성 작업은 응답을 보낸 뒤 시작됩니다(7-7). 저장 후 진행 상태는 7-1(`GET /prescriptions/{prescription_id}/guides`)로 확인합니다.
-  - 처방 상세 화면용 전체 데이터는 `GET /prescriptions/{prescription_id}`(설아)로 받습니다. 저장 후 프론트는 상세 또는 홈으로 이동합니다.
-  - 건강 프로필이 없을 때의 팝업(REQ-USER-010 예외)은 프론트가 `GET /users/me/health-profile`의 `is_registered`로 판단해 이 API를 부르기 전에 띄웁니다.
-  - 직접 입력은 처방일이 보통 `null`이라, 가이드 목록(7-3)에서 등록일을 대신 보여줄지 설아님이 정합니다.
+  - 처방 상세 화면용 전체 데이터는 `GET /prescriptions/{prescription_id}`(설아)로 받습니다. 저장 후 프론트는 홈으로 이동합니다(11/20 결정). 등록하자마자 약통에 칸이 생기는 것이 바로 보이고, 가이드는 홈 상단 "가이드를 만들고 있어요" 안내로 알려 줍니다.
+  - 건강 프로필이 없을 때의 팝업(REQ-USER-010 예외)은 프론트가 `GET /users/me/health-profile`의 `is_registered`로 판단해 이 API를 부르기 전에 띄웁니다(11/23 설아님 동의, 와이어프레임도 이 기준).
+  - 직접 입력은 처방일이 보통 `null`이라, 가이드 목록(7-3)은 처방일이 없으면 등록일(`created_at`)을 "○월 ○일 등록"으로 보여줍니다(11/23 설아님 결정).
   - 저장 버튼 연타로 같은 처방이 두 번 생기지 않게 프론트에서 저장 중 버튼을 막습니다. 서버 쪽 중복 방지(`Idempotency-Key`)는 2차입니다.
   - 1차 범위 밖: 식간·공복·n시간 간격 조건, 매일이 아닌 주기, 복용법 문장 해석(`POST /dosage/parse`), 병용 주의 확인(REQ-MED-007)은 2차입니다.
 
@@ -902,7 +916,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | E1 | `users` | `gender`에 enum(`male / female`) 추가 | 지금은 `varchar(10)`이라 값이 정해져 있지 않음 |
 | E2 | `users` | `profile_image_url varchar(500)` 추가(2차 내 정보 화면 때라도) | REQ-USER-002·008에 '동의한 경우 저장·조회'가 있음 |
 | E3 | `user_consents` | `terms_version varchar(20)` 추가 | 약관이 바뀌었을 때 어느 버전에 동의했는지 남겨야 함. 지금은 (회원, 종류) unique라 다시 동의하면 이력도 덮어씀 |
-| E4 | `consent_type` | 1차 카카오 로그인에서 `talk_message`를 함께 요청한다면 1차 enum에 넣기. 아니면 1차는 카카오 동의 항목에서 빼기 | 동의를 받고 저장할 곳이 없으면 2차에 다시 동의를 받아야 함 |
+| E4 | `consent_type` | ✅ 1차는 카카오 동의 항목에서 `talk_message`를 빼기로 함(11/23 설아). 1차 enum은 그대로 두고, 2차 알림 때 enum에 추가 | 알림이 2차이고, 요구사항에도 동의 안 한 회원은 알림 설정에서 추가 동의를 받게 되어 있음 |
 | E5 | `dose_conditions` | `interval_hours` 칸 정리(1차 `dose_condition_type`에 간격 값이 없음) | 1차에서 쓰지 않는 칸. 6장도 간격을 1차에서 뺌 |
 | E6 | `intake_logs` | `(prescription_item_id, log_date, scheduled_time)` unique는 필요시 기록(`scheduled_time = NULL`)에서 PostgreSQL이 NULL끼리 다르게 봐 여러 행이 허용됨. 의도대로라면 note에 적어 두기 | 필요시 약을 하루 여러 번 체크하는 데 필요 |
 | E7 | `chat_messages` | note의 `counts_toward_quota` 칸이 테이블에 없음 | 하루 사용량(CHAT-006)이 2차라 2차에 추가해도 됨 |
@@ -915,28 +929,29 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 
 | No | 확인할 것 | 이 문서의 제안 | 같이 볼 사람 |
 | --- | --- | --- | --- |
-| 1 | 첫 로그인 응답의 `is_profile_completed` | 로그인·`GET /users/me` 응답에 넣었습니다. `false`이면 추가 정보 입력 화면으로 보내고, 그 전에는 다른 API가 `PROFILE_REQUIRED`입니다 | 설아 |
-| 2 | 리프레시 토큰 쿠키(교차 도메인)와 동시 재발급 | 4-1 표와 `/auth/refresh` 비고. `SameSite=None` + CORS credentials, 401이 여러 개 와도 재발급은 한 번만 | 설아 |
+| 1 | ✅ 첫 로그인 응답의 `is_profile_completed` | 로그인·`GET /users/me` 응답에 넣었습니다. `false`이면 추가 정보 입력 화면으로 보내고, 그 전에는 다른 API가 `PROFILE_REQUIRED`입니다. 프론트는 앱 시작 때 `GET /users/me`로 라우팅(11/23) | 설아 |
+| 2 | 리프레시 토큰 쿠키와 동시 재발급 | 동시 재발급: ✅ 프론트 single-flight(11/23). 쿠키: Vercel rewrites로 같은 주소처럼 써서 `SameSite=Lax` 퍼스트파티 쿠키, CORS credentials 불필요(4-1). 첫 배포 때 30MB 업로드·SSE 프록시 통과를 테스트하고, 막히면 Plan B(`daol.site` / `api.daol.site`) | 설아 · 민정 |
 | 3 | ✅ 건강 프로필 값 | 7-6 프롬프트에 4장 응답 이름을 그대로 쓰기로 함(11/20) | 유정 |
-| 4 | '최근 3일'의 범위 | 오늘−3일 ~ 오늘(4일치)로 정했습니다. 오늘 포함 3일이면 −2일로 바꿉니다 | 설아 |
-| 5 | 지난 날짜 `pending` → `missed` 처리 | 조회·체크 때 갱신. `/home/today`도 같은 함수를 쓰면 요일 완료율이 맞습니다 | 설아 |
-| 6 | 필요시 약 체크 | ERD는 지원하지만(`is_as_needed`) 기록을 만드는 API가 1차 목록에 없습니다. 1차는 목록만 두고, 필요하면 `POST /intakes`(필요시 체크)를 민정 담당으로 추가 | 설아 |
+| 4 | ✅ '최근 3일'의 범위 | 오늘−3일 ~ 오늘(4일치)(11/23) | 설아 |
+| 5 | ✅ 지난 날짜 `pending` → `missed` 처리 | 조회·체크 때 갱신. `/home/today`도 같은 함수를 씀(11/23) | 설아 |
+| 6 | ✅ 필요시 약 체크 | 1차는 목록만으로 확정. `POST /intakes`는 만들지 않음(11/23) | 설아 |
 | 7 | ✅ `intake_logs` 생성 시점 | 확정·등록 시각 이후 회차부터, 시작일이 과거여도 지난 회차는 만들지 않고 종료일은 그대로(6장 합의) | 채민 |
 | 8 | ✅ `create_prescription()` 입력 형식 | 6장 확정 API Request Body 모양을 채택하고, ERD 이름으로는 매핑표에서 바꿔 저장합니다. 직접 입력도 같은 모양 | 채민 |
 | 9 | ✅ 조건을 고른 뒤 재계산 | `recalculate_schedule(prescription_item_id)`(6장 이름) 명세 추가. 오늘 이후 `pending`만 바꾸고 `taken`·`missed`는 유지 | 채민 |
-| 10 | 처방 약 ID 이름 | ERD 테이블이 `prescription_items`이므로 `prescription_item_id`로 통일. 6·7장은 같은 이름이고, 5번 섹션의 `prescription_drug_id`만 바꾸면 됩니다 | 설아 |
+| 10 | ✅ 처방 약 ID 이름 | `prescription_item_id`로 통일. 5번 섹션의 `prescription_drug_id`는 설아님이 5장 PR에서 바꿈(11/23) | 설아 |
 | 11 | ✅ 복용 조건 ID 이름 | 6장대로 `condition_id`(= `dose_conditions.id`)를 씁니다 | 채민 |
-| 12 | 처방 응답의 `schedule_status` | 약 단위로 `ok / needs_check / null(필요시)`. 처방 상세 응답도 같은 값으로 맞춥니다 | 설아 |
-| 13 | 만 14세 미만 가입 | 개인정보보호법상 만 14세 미만은 법정대리인 동의가 필요합니다. 1차는 추가 정보 입력에서 만 14세 미만이면 `VALIDATION_ERROR`로 막는 안 | 전원 |
+| 12 | ✅ 처방 응답의 `schedule_status` | 약 단위로 `ok / needs_check / null(필요시)`. 처방 상세 응답도 같은 값(11/23) | 설아 |
+| 13 | 만 14세 미만 가입 | 개인정보보호법상 만 14세 미만은 법정대리인 동의가 필요합니다. 1차는 추가 정보 입력에서 만 14세 미만이면 `VALIDATION_ERROR`로 막습니다(`POST /users/me/profile`에 반영). 설아님 동의(11/23), 채민·유정님 의견 없으면 확정 | 전원 |
 | 14 | ✅ `VALIDATION_ERROR`의 `fields` 형식 | `{ "필드 경로": "사유 문장" }`. 1-1에 반영했습니다(11/20) | 전원 |
 | 15 | ERD 수정 제안 E1~E11 | 4-8 표. E8은 반영됨 | ERD 담당 |
 | 16 | ✅ 가이드 행이 없는 경우 | 가이드 행을 `create_prescription()` 트랜잭션 안에서 만들어 처방이 있으면 행도 있음. 그래도 없으면 7-1이 `failed`로 내려줌(7-1, 7-7) | 유정 |
 | 17 | `start_guide_generation()`에 DB 세션 인자 | 같은 트랜잭션에서 `guides` 행을 만들려면 요청의 세션을 넘겨받아야 합니다. 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 바꾸는 안 | 유정 |
-| 18 | 직접 입력에서 공공데이터에 없는 약 | 6장 `GET /drugs`의 "약 이름 그대로 저장할 수도 있어요"에 맞춰 직접 입력도 `drug_id: null` 저장을 허용했습니다. REQ-MED-001은 '검색 결과에서 선택'이라 화면에서 이 버튼을 둘지 확인 | 설아 |
+| 18 | ✅ 직접 입력에서 공공데이터에 없는 약 | 직접 입력도 `drug_id: null` 저장 허용. 화면에 "검색 결과가 없어요 → 이름 그대로 저장" 버튼을 OCR과 같게 둠(11/23) | 설아 |
 | 19 | 업로드 장 수·OCR 호출 제한(6장 질문) | 제안값(한 번에 10장, 회원당 하루 20회)에 동의합니다. CLOVA OCR의 PDF 1회 10페이지와도 맞습니다 | 채민 |
 | 20 | `GET /drugs` 응답(6장 질문) | 자동완성의 `{"items": [...]}`는 1번 '목록' 규칙의 예외로 1번에 적었습니다. 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)에 맞추는 안 | 채민 |
 | 21 | ✅ 문서 진행 상태(6장 질문) | ERD `document_status` + 로딩 문구용 `step`에 동의합니다(1-2와 맞음) | 채민 · 설아 |
 | 22 | 커밋 위치와 문서 상태 변경 | `create_prescription()`·`recalculate_schedule()`은 커밋하지 않고 부른 API가 커밋합니다. 문서 `confirmed` 처리는 `create_prescription()` 안에서 하므로 6장 처리 순서 ③은 이 함수가 대신합니다. 함수 인자 이름은 6장대로 `medical_document_id` | 채민 |
+| 23 | ✅ 홈의 '복용 시간 확인 필요' 약 | 홈에서 바로 끼니를 고름(11/20 설아·채민). `GET /intakes`의 `schedule_check_items`에 회차별 `conditions`(`condition_id`, `dose_no`, `reason`, `timing`, `offset_min`) 추가, 회차마다 `PATCH /dose-conditions` 호출. `timing_unknown`의 홈 화면 처리는 설아님 확인 | 설아 · 채민 |
 
 <!-- 민정 END -->
 
@@ -1817,7 +1832,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - 비고:
   - 처리 순서: ① 질문 가리기(`mask_text()`) 후 저장 → `meta` ② 응급 표현 확인(규칙, LLM 호출 전) ③ 범위 확인(1차는 키워드, 범위 밖이면 고정 문구, LLM 안 부름) ④ 근거 검색(복용 중인 약 + 질문에 나온 약) ⑤ LLM 답변(`delta`) ⑥ 금지 표현 검사(`check_full()`, 1차는 기록만) ⑦ `sources` ⑧ 답변 저장 → `done`
   - 프롬프트에는 복용 중인 약(이름·성분명·복용법 요약·복용 시각), 건강 프로필(이름·이메일 제외, 나이는 나이대로), 최근 10턴을 넣습니다(CHAT-002). 복용 중인 약은 민정님 공용 함수로 고르고, 건강 프로필 필드 이름은 4장 응답 이름을 그대로 씁니다.
-  - POST + `Authorization` 헤더를 쓰므로 프론트는 `EventSource` 대신 `fetch` 스트림으로 받습니다(설아님 참고). 배포 때 Nginx 응답 버퍼링 끄기는 민정님이 챙깁니다.
+  - POST + `Authorization` 헤더를 쓰므로 프론트는 `EventSource` 대신 `fetch` 스트림으로 받습니다(설아님 참고). 배포 때 Nginx 응답 버퍼링 끄기는 민정님이 챙깁니다. Vercel rewrites(4-1)를 거쳐도 스트림이 끊기지 않고 조금씩 오는지 첫 배포 때 확인하고, 한 번에 몰려오거나 끊기면 4-1 Plan B로 바꿉니다.
   - 서버가 답변 중에 재시작되면 답변 메시지가 `streaming`에 남아 대화방이 막힙니다. 그래서 `ANSWER_IN_PROGRESS`는 `streaming` 메시지가 **60초 안에** 만들어졌을 때만 돌려주고, 60초가 지난 `streaming`은 `failed`로 바꾼 뒤 새 질문을 받습니다.
   - 건강 프로필이 없으면 약 정보만으로 답하고, 대화방에서 처음 한 번만 `show_profile_link: true`를 보냅니다.
   - 신체 응급(`physical`)은 빨간 카드로 119 안내를 먼저 보여 주고 이어서 답변합니다. 자해·자살(`self_harm`)은 109 안내만 보여 주고 일반 답변을 하지 않습니다(CHAT-004).
@@ -1884,4 +1899,6 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | 2026-11-20 | 민정 | 6·7장 반영: 처방 입력을 6장 확정 API 모양으로 통일(ERD 매핑표), `background_tasks`·가이드 행 같은 트랜잭션, 복용 기록 생성 시점·재계산 함수, 6장 질문 답(4-9 19~22) |
 | 2026-11-20 | 민정 | 공통 규칙 변경: 1-1 `fields` 형식, 1-3 SSE 표를 7-6 기준으로 수정, 1번 형식·목록 규칙에 예외(처방 입력 모양, `GET /drugs`) 추가 |
 | 2026-11-20 | 민정 | 3-1에 개인정보 가리기 함수 `mask_text()`(채민) 추가(7장 요청) |
+| 2026-11-23 | 민정 | 설아님 리뷰 반영(쿠키): 4-1 리프레시 토큰 쿠키 `SameSite=None` → `Lax`, Vercel rewrites로 퍼스트파티 쿠키·CORS credentials 제거, Plan B(`daol.site` / `api.daol.site`) 추가. 로그아웃 쿠키 삭제 헤더, 3-1 배포 두 행, 7-6 SSE 비고(프록시 테스트) 함께 수정 |
+| 2026-11-23 | 민정 | 설아님 리뷰 반영(홈·처방): `GET /intakes` `schedule_check_items`에 회차별 `conditions` 추가(4-9 23), `POST /prescriptions` 저장 후 이동을 '홈'으로, 건강 프로필 팝업·필요시 토글·이름 그대로 저장 버튼·처방일 없을 때 등록일 표시 반영, 만 14세 미만 `VALIDATION_ERROR` 규칙 추가, 필요시 약 체크 1차 제외 확정, 4-8 E4(`talk_message` 1차 제외) 확정, 4-9 1·4·5·6·10·12·18 확정 |
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
