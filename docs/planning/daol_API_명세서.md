@@ -205,8 +205,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 처방 저장 함수 | 민정 | `create_prescription()` 하나로 처방·약·복용 조건 저장, 기본 일과로 `dose_schedules` 계산, `intake_logs` 생성, `start_guide_generation()` 호출까지 한 번에 처리합니다. OCR 확정과 직접 입력이 모두 이 함수를 부르므로 저장 로직이 두 벌로 갈라지지 않습니다 |
 | 공공데이터 `drugs` 적재 | 유정 | RAG용 e약은요 데이터를 받을 때 `drugs` 테이블에도 함께 넣습니다. 같은 데이터를 두 번 받지 않도록 한 파이프라인으로 처리합니다 |
 | 개인정보 가리기 함수 | 채민 | `mask_text()`: OCR 결과·챗봇 질문을 저장하거나 LLM에 보내기 전에 이름·주민등록번호·환자번호·면허번호·연락처를 가립니다(NFR-004). OCR(6장)과 챗봇(7-6)이 같은 함수를 씁니다 |
-| 백엔드 배포 | 민정 | EC2 + Docker Compose (NFR-007). 프론트가 Vercel rewrites로 `/api/*`를 넘겨받는 구조라 CORS credentials 설정은 하지 않습니다(4-1) |
-| 프론트 배포 | 설아 | Vercel. `vercel.json` rewrites로 `/api/:path*`를 EC2 주소로 넘겨 같은 주소처럼 씁니다(4-1). 로컬 개발도 개발 서버 프록시로 같은 방식을 씁니다. 첫 배포 때 30MB 업로드·챗봇 SSE가 프록시를 통과하는지 테스트하고, 막히면 4-1 Plan B로 바꿉니다 |
+| 백엔드 배포 | 민정 | EC2 + Docker Compose (NFR-007). 서버 주소는 `https://api.daol.site`(11/23 도메인 구매): EC2에 Elastic IP를 붙이고, Nginx에 Let's Encrypt 인증서를 붙입니다(DNS `api` A 레코드는 설아). 프론트가 Vercel rewrites로 `/api/*`를 넘겨받는 구조라 CORS credentials 설정은 하지 않습니다(4-1) |
+| 프론트 배포 | 설아 | Vercel. `vercel.json` rewrites로 `/api/:path*`를 `https://api.daol.site/api/:path*`로 넘겨 같은 주소처럼 씁니다(4-1). 로컬 개발도 개발 서버 프록시로 같은 방식을 씁니다. 첫 배포 때 30MB 업로드·챗봇 SSE가 프록시를 통과하는지 테스트하고, 막히면 4-1 Plan B로 바꿉니다 |
 
 ---
 
@@ -248,11 +248,11 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 
 | 항목 | 값 |
 | --- | --- |
-| 쿠키 | `refresh_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=1209600`(14일). `Domain`은 넣지 않습니다(호스트 전용 쿠키). 브라우저는 HTTPS인 Vercel 주소와 통신하므로 EC2가 HTTP여도 `Secure` 쿠키가 동작합니다 |
+| 쿠키 | `refresh_token=...; HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth; Max-Age=1209600`(14일). `Domain`은 넣지 않습니다(호스트 전용 쿠키). 브라우저는 HTTPS인 Vercel 주소와 통신하고, Vercel → EC2 구간도 `https://api.daol.site`로 HTTPS입니다(REQ-NFR-003, 11/23 도메인 구매) |
 | 액세스 토큰 | 응답 본문 `access_token`. 프론트는 메모리에만 보관하고 localStorage에 저장하지 않습니다 |
 | 서버 저장 | `refresh_tokens.token_hash`(SHA-256), `expires_at`(14일), `revoked_at`(무효화 시각) |
 | 배포 구조 | 프론트(Vercel)가 `/api/*` 요청을 rewrites로 EC2에 넘깁니다. 브라우저에는 같은 주소로 보여서 쿠키가 퍼스트파티가 되므로 `SameSite=Lax`로 충분하고, CORS `allow_credentials`·`credentials: "include"` 설정이 필요 없습니다. 프론트는 API를 상대 경로(`/api/v1/...`)로 부릅니다. `SameSite=None` 교차 사이트 쿠키는 사파리가 기본으로 막고 크롬도 막는 쪽이라 쓰지 않습니다(설아님 제안, 11/23) |
-| 대안(Plan B) | 첫 배포 때 30MB 업로드(6장)와 챗봇 SSE(7-6)가 프록시를 통과하지 못하면 도메인을 사서 화면 `daol.site`(Vercel), 서버 `api.daol.site`(EC2 + HTTPS)로 나눕니다. 두 주소는 같은 사이트라 `SameSite=Lax`는 유지되지만 출처(origin)가 달라서 백엔드 CORS `allow_credentials=True` + 허용 Origin 명시 + 프론트 `credentials: "include"`가 다시 필요합니다. 카카오 개발자 콘솔의 Redirect URI도 새 도메인으로 바꿉니다 |
+| 대안(Plan B) | 첫 배포 때 30MB 업로드(6장)와 챗봇 SSE(7-6)가 프록시를 통과하지 못하면 프록시를 거치지 않고 화면 `daol.site`(Vercel), 서버 `api.daol.site`(EC2 + HTTPS, 이미 준비됨)로 바로 부릅니다. 두 주소는 같은 사이트라 `SameSite=Lax`는 유지되지만 출처(origin)가 달라서 백엔드 CORS `allow_credentials=True` + 허용 Origin 명시 + 프론트 `credentials: "include"`가 다시 필요합니다. 카카오 개발자 콘솔의 Redirect URI도 새 도메인으로 바꿉니다 |
 
 ### [POST] /api/v1/auth/kakao
 - 설명: 카카오 인가 코드로 로그인합니다. 처음 온 카카오 계정이면 회원을 만든 뒤 로그인합니다.
@@ -1316,7 +1316,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - 에러: `NOT_FOUND`(404) 없는 약·다른 회원의 약 → "약 정보를 찾을 수 없어요" 후 내 약 목록으로 이동
 - 비고:
   - 처방 상세와 같은 조회 함수로 읽고, 약 한 줄만 골라 `drugs` 칸을 더합니다.
-  - `drug_info` 칸은 `drugs` 컬럼 이름을 그대로 씁니다. 비어 있는 칸은 `null`이고, 화면은 그 섹션을 숨깁니다. 하단에 `출처: {source_name} · {data_fetched_at} 기준`을 표시합니다(REQ-MED-002).
+  - `drug_info` 칸은 `drugs` 컬럼 이름을 그대로 씁니다. 비어 있는 칸은 `null`이고, 화면은 그 섹션을 숨깁니다. 하단에 `출처: {source_name} · {data_fetched_at} 기준`을 표시합니다(REQ-MED-002). `source_name`은 예시처럼 고정 값이 아니라 약마다 달라질 수 있습니다(e약은요에 없는 처방약은 의약품 허가정보로 보충 예정). 약별 출처를 `drugs`에 어떻게 저장할지는 `drugs` 적재 때 유정·민정님이 정하고, 이 칸은 그 값을 그대로 내려줍니다(11/23 유정님 리뷰).
   - `drug_info: null`이면 "이 약은 안내 정보가 없어요" + 내 복용 정보 카드만 보여 줍니다.
   - `schedule_status = needs_check`이면 내 복용 정보 카드에서 `reason`이 있는 회차마다 고르기 칩을 보여 주고, 그 회차의 `condition_id`로 6장 `PATCH /dose-conditions/{condition_id}`를 부릅니다. `timing_unknown` 회차는 식전·식후·취침 전과 끼니·분을, `meal_unknown` 회차는 끼니만 고릅니다(B-2 이어서 고르기와 같은 칩). 저장할 때마다 이 API를 다시 불러 화면을 갱신합니다.
   - 하루 횟수·필요시 여부·용량·일수는 B-2에서 저장 전에 확인한 값이라 1차에서는 고치지 않습니다. 확인이 끝난 약의 복용 시각·복용법 수정(REQ-MED-010, REQ-MED-004)은 2차입니다.
@@ -1428,7 +1428,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | `ocr_done` | `null` | 인식 결과 확인 화면(B-2) | 회원이 확인·수정 후 확정 |
 | `ocr_failed` | `null` | `message` + [다시 찍기] / [직접 입력하기] | B-1으로 돌아가거나 직접 입력(`POST /prescriptions`) |
 | `confirmed` | `null` | 홈으로 이동 | `prescription_id` 사용 |
-| `expired` | `null` | "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요" | B-1 |
+| `expired` | `null` | "파일이 삭제됐어요. 다시 올려 주세요" | B-1 |
 
 - `ocr_done`은 OCR과 약 정보 정리가 **모두** 끝난 상태입니다(이름은 ERD를 따름).
 - 최대 대기 시간: 업로드 후 **90초**(제안, 가상 처방전 테스트 후 조정). 90초가 지나도 끝나지 않으면 서버가 `ocr_failed`(`fail_reason: timeout`)로 바꾸고, 프론트도 90초가 지나면 조회를 멈추고 실패 화면을 보여 줍니다.
@@ -1497,7 +1497,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | `TOO_MANY_PAGES` | 422 | 페이지 합계가 상한 초과(제안 10장) | "한 번에 10장까지 올릴 수 있어요" |
 | `DOCUMENT_NOT_READY` | 409 | 아직 읽는 중이거나 읽기에 실패한 문서를 수정·확정하려 함 | "아직 처방전을 읽고 있어요" |
 | `DOCUMENT_ALREADY_CONFIRMED` | 409 | 이미 확정한 문서 | "이미 등록된 처방이에요" |
-| `DOCUMENT_EXPIRED` | 410 | 업로드 후 3시간이 지나 원본이 삭제됨 | "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요" |
+| `DOCUMENT_EXPIRED` | 410 | 업로드 후 3시간이 지나 원본이 삭제됨, 또는 회원이 읽기를 취소함(`DELETE /scans`). 두 경우 모두 같은 공통 문구 | "파일이 삭제됐어요. 다시 올려 주세요" |
 
 ### [POST] /api/v1/scans
 - 설명: 처방전·약봉투 파일을 올리고 글자 읽기를 시작합니다. 한 번에 올린 파일 묶음이 처방 한 건입니다. 읽기는 비동기로 진행되므로 바로 `202`를 돌려주고, 프론트는 `GET /scans/{scan_id}`로 진행 상태를 조회합니다(1-2).
@@ -1813,7 +1813,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   | `meal_unknown` | `timing`은 식전·식후인데 `meal`이 `null` | 끼니만 고르게 함 |
 
   예: "1일 2회 복용"만 적힌 약은 두 회차 모두 `timing_unknown`입니다.
-- 에러: `VALIDATION_ERROR`(422) 필수 칸 빈칸·잘못된 값 → [저장하기]를 막고 `fields`의 칸을 표시 / `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중·읽기 실패 / `DOCUMENT_ALREADY_CONFIRMED`(409) 이미 확정 → `GET /scans/{scan_id}`의 `prescription_id`로 처방 상세 이동 / `DOCUMENT_EXPIRED`(410) → "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요"
+- 에러: `VALIDATION_ERROR`(422) 필수 칸 빈칸·잘못된 값 → [저장하기]를 막고 `fields`의 칸을 표시 / `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중·읽기 실패 / `DOCUMENT_ALREADY_CONFIRMED`(409) 이미 확정 → `GET /scans/{scan_id}`의 `prescription_id`로 처방 상세 이동 / `DOCUMENT_EXPIRED`(410) → "파일이 삭제됐어요. 다시 올려 주세요"
 
   ```json
   {
@@ -1850,7 +1850,8 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   - `uploaded`·`ocr_done`·`ocr_failed` 상태에서 받습니다. 이미 `expired`면 아무것도 하지 않고 204를 돌려줍니다(여러 번 눌러도 같음).
   - 문서 행은 지우지 않고 `status = expired`, `parsed_result = NULL`로 바꾼 뒤 원본 파일·페이지 이미지를 지웁니다. 행을 남겨 회원당 하루 OCR 호출 수(20회)에 그대로 셉니다.
   - 읽기 작업이 아직 돌고 있으면, 작업은 결과를 저장하기 전에 문서 상태를 다시 읽어 `expired`면 결과를 버리고 끝냅니다. 이미 보낸 CLOVA OCR·LLM 호출은 되돌릴 수 없습니다.
-  - 파일 삭제는 커밋 뒤에 합니다. 삭제에 실패해도 204를 돌려주고 정리 작업이 다시 지웁니다(확정 API 비고와 같음).
+  - 파일 삭제는 커밋 뒤에 합니다. 삭제에 실패해도 204를 돌려주고 정리 작업이 다시 지웁니다(확정 API 비고와 같음). 그래서 정리 작업은 3시간이 지난 문서뿐 아니라 `status`가 `confirmed`·`expired`인데 `document_pages.deleted_at`이 비어 있는(파일이 남은) 페이지도 골라 지웁니다.
+  - 취소한 문서를 다시 열면 `expired` 화면(6-1)과 `DOCUMENT_EXPIRED`가 나옵니다. 3시간 만료와 취소에 모두 맞도록 문구를 "파일이 삭제됐어요. 다시 올려 주세요"로 통일했습니다(11/23 채민님 리뷰).
 
 ### [GET] /api/v1/drugs
 - 설명: 약품명(상품명·성분명)으로 약을 검색합니다. 확인 화면의 약품 매칭 후보(`limit=3`)와 직접 입력의 약 검색(기본 10개)이 같이 씁니다.
@@ -2262,7 +2263,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 - 비고:
   - LLM을 쓰지 않고, 틀 문장에 복용 중인 약 이름을 넣어 만듭니다(예: "{약 이름} 먹고 술 마셔도 되나요?"). 틀 문장과 기본 질문은 AI 파트가 정합니다.
   - 복용 중인 약이 없으면 기본 질문 3개를 돌려줍니다.
-  - '복용 중인 약'은 민정님 공용 함수(시작일 ≤ 오늘 ≤ 종료일)로 고릅니다. 7-6 프롬프트, 설아님 처방 목록과 같은 기준입니다.
+  - '복용 중인 약'은 민정님 공용 함수로 고르고, 기준은 5-0 '복용 중'(시작일과 상관없이 종료일이 오늘 이후)입니다(11/23 유정님 리뷰). 7-6 프롬프트, 설아님 처방 목록과 같은 기준입니다.
   - 추천 질문을 누르면 7-6을 `is_recommended_question: true`로 부릅니다.
 
 ### 7-5. [POST] /api/v1/chat/sessions
@@ -2394,6 +2395,9 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-23 | 설아 | 5장 관련 다른 섹션 반영: 4장 `/home/today` → `/home?date=`, 4-9 23·24 ✅, `validate_drug_input()`·`format_condition_label()` 공용 함수 / 6장 약 상세 경로, `PATCH /dose-conditions`·6-1·확정 API 이동 화면(홈), `DELETE /scans/{scan_id}` 추가, 페이지 순서·문서 종류 경고 답변 / 7장 7-1 `how_to_take` 조회 때 채우기, 설아 확인 항목 ✅ |
 | 2026-11-23 | 설아 | 요구사항 정의서 교차 검증 반영: 7-1 실패 문구를 '가이드 생성이 지연되고 있어요'로 통일, 4장 `POST /prescriptions` 병원명·메모는 1차 화면에서 보내지 않음, 6장 같은 파일 감지·다른 처방전 섞임 안내 2차 |
 | 2026-11-23 | 설아 | `PATCH /prescription-items` 1차 제외(채민님 의견): '복용 조건 확인 필요' 약은 약 상세(C-2)에서도 6장 `PATCH /dose-conditions`로 회차마다 고름. 3번 목록 28개, 4-9 23·24, 5장 약 상세 비고·에러 코드, 6장 관련 화면, 7-1 비고 수정 |
+| 2026-11-23 | 설아 | 서버 도메인 `api.daol.site` 반영(daol.site 구매): 3-1 배포 두 행(Elastic IP·Let's Encrypt·rewrites 주소), 4-1 쿠키 행(Vercel → EC2 구간도 HTTPS)·Plan B 문구 |
+| 2026-11-23 | 설아 | 채민님 리뷰 반영: `expired`·`DOCUMENT_EXPIRED` 문구를 '파일이 삭제됐어요. 다시 올려 주세요'로 통일(취소에도 맞게), `DELETE /scans` 비고에 정리 작업이 파일이 남은 `confirmed`·`expired` 문서도 지운다고 추가 |
+| 2026-11-23 | 설아 | 유정님 리뷰 반영: 7-4 '복용 중인 약' 기준을 5-0(종료일이 오늘 이후)으로 통일, 5장 약 상세 `source_name`은 약마다 달라질 수 있다는 메모 추가 |
 | 2026-11-23 | 유정 | 7-7 검증 호출에서 `attempt_no`·`is_last_attempt` 제거(6장과 맞춤), 7-3 처방일 없을 때 등록일 표시 반영, pgvector 사용 반영 |
 | 2026-11-20 | 유정 | 7-1 건강 프로필을 나중에 입력한 경우의 상단 문구 추가(4장 건강 프로필 비고 답변) |
 | 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
