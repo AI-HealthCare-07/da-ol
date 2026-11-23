@@ -419,7 +419,10 @@ Table drugs [headercolor: #3B82F6] {
   storage_method text
   is_oral boolean [note: "먹는 약 여부 (제형으로 판단). false면 '먹는 약 아님'으로 표시하고 등록 안 함. 알 수 없으면 NULL → 회원 확인 (OCR-003·004)"]
   image_url varchar(500)
-  data_fetched_at date [not null, note: "데이터 기준일 - 상세 화면 하단 표시 (MED-002)"]
+  data_fetched_at date [not null, note: "데이터를 받아 온 날(우리 기준일). 약 상세 하단 '○○ 기준' 표시에 씀 (MED-002, 11/23 유정)"]
+  data_source varchar(20) [not null, note: "출처: easy_drug(e약은요) / permit(의약품 허가정보). e약은요에 없는 처방약은 허가정보로 보충 → 약 상세 출처 이름 표시에 씀 (11/23 유정)"]
+  source_updated_at date [note: "식약처 쪽 마지막 수정일(e약은요 updateDe 등). 화면에 쓰지 않고, 다시 받을 때 바뀐 약만 골라 갱신하는 데 씀 (11/23 유정)"]
+  is_otc boolean [note: "일반의약품 여부(허가정보의 전문/일반 구분). 모르면 NULL (11/23 유정)"]
 
   indexes {
     item_name
@@ -464,7 +467,7 @@ Table rag_documents [headercolor: #3B82F6] {
   drug_id bigint [ref: >? drugs.id]
   chunk_count int [not null, default: 0]
   created_at timestamptz [not null, default: `now()`]
-  Note: 'GUIDE-003. 임베딩·청크는 벡터 DB에 저장하고 metadata 에 rag_documents.id 기록'
+  Note: 'GUIDE-003. 임베딩·청크는 PostgreSQL pgvector에 저장 (11/23 결정, 임베딩 모델 text-embedding-3-small). 청크·임베딩 테이블은 유정이 추가 예정(11/27), 청크마다 rag_documents.id 연결'
 }
 
 // ---------------------------------------------------------------------
@@ -496,7 +499,7 @@ Table prescription_items [headercolor: #3B82F6] {
   cycle_type cycle_type [note: "[2차] MED-025. 1차는 모두 daily로 저장. 2차에서 못 읽으면 NULL = '투여 주기 확인 필요' (임의로 daily 채우지 않음)"]
   cycle_weekdays varchar(30) [note: "weekly_days 일 때 'MON,THU'"]
   cycle_interval_weeks int [note: 'every_n_weeks 일 때 n']
-  times_per_day int [not null, note: '1~4. 투여 주기가 매일이 아니면 복용하는 날의 횟수']
+  times_per_day int [note: '1~4. 투여 주기가 매일이 아니면 복용하는 날의 횟수. 필요시 약만 NULL 가능 (처방전에 필요시만 적힌 경우, 직접 입력은 하루 최대 횟수) (API 4-8 E10, 11/23)']
   start_date date [not null, note: '기본값 처방일, 없으면 오늘. 주기 계산 기준일(첫 투여일)']
   total_days int [not null, note: '1~365']
   continued_from_item_id bigint [ref: >? prescription_items.id, note: "[2차] '이어서 먹는 약'이면 기존 약 (MED-007)"]
@@ -661,7 +664,8 @@ Table chat_messages [headercolor: #3B82F6] {
   content text [not null, note: '최대 500자(질문). 암호화']
   is_recommended_question boolean [not null, default: false, note: '추천 질문 버튼 - 1회로 셈']
   counts_toward_quota boolean [not null, default: true, note: '[2차] 응급·범위 밖·실패는 false (하루 50회)']
-  verify_status chat_verify_status [not null, default: 'not_needed', note: '[2차] VERI-007']
+  check_result jsonb [note: "check_full() 반환값 그대로 저장. 예: {passed: false, types: ['forbidden'], rules_version: 'verify_rules_v1'}. 검사 안 함·오류면 NULL, 회원 질문 행은 항상 NULL. 1차는 기록만 (API 4-8 E11, 6-4)"]
+  verify_status chat_verify_status [not null, default: 'not_needed', note: '[2차] VERI-007 정정 안내. 1차는 check_result만 씀 (2차에 다시 논의)']
   correction_note text
   prompt_version_id bigint [ref: >? prompt_versions.id]
   created_at timestamptz [not null, default: `now()`]
