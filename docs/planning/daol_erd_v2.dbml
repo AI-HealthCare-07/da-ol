@@ -1,6 +1,6 @@
 // =====================================================================
 // 다올(Da-Ol) - 진료 기록 기반 복약 안내 및 생활습관 개선 가이드 ERD
-// 기준: 요구사항 정의서 v11 (REQ 79건 = 1차 39 / 2차 28 / 3차 12)
+// 기준: 요구사항 정의서 v11 (REQ 79건) + 1차 축소안(11/20) + API 명세 리뷰(11/22)
 //       11/17 회의(P-01~48) + 11/18 회의(결정 6-1~6-10) + 11/19 범위 축소 반영
 //       (카카오 로그인만 / 먹는 약만 / 퇴원요약지·감량 일정·냉장 보관 제외 / 화분 동기부여 추가)
 //       + 11/20 결정: 카카오톡 복약 알림(NOTI-005, 2차) · 파트너 미복용 알림(NOTI-006, 3차)
@@ -8,7 +8,7 @@
 //       + 11/20 1차 축소안 반영: 35개 → 34개, 1차(파랑) 25개 → 20개
 //         - document_files 를 document_pages 에 통합 (PDF 여러 페이지면 파일 정보가 페이지마다 반복, 3시간 안에 지워지는 임시 데이터)
 //         - daily_routines → 2차 (USER-013 2차. 1차는 기본 일과로 계산)
-//         - drug_ingredients · dur_contraindications → 2차 (MED-007 DUR 2차, MED-001 성분 검색 2차)
+//         - drug_ingredients · dur_contraindications → 2차 (MED-007 DUR 2차. 1차 성분명 검색은 drugs.ingredient_name)
 //         - flower_types → 3차 (1차는 기본 꽃 1종 = flower_type_id NULL)
 //         - user_settings + notification_settings 통합 (회원당 1행인 설정 테이블 하나로)
 //         - dose_time_adjustments 삭제 → dose_schedules.adjust_warning + 진료 준비 질문(visit_questions)이 이력 역할
@@ -52,7 +52,7 @@ Enum consent_type {
   terms
   privacy
   sensitive_health [note: '민감정보(건강정보) 별도 동의']
-  kakao_message [note: "[2차] 카카오톡 메시지 전송(talk_message) 선택 동의. 로그인 때 또는 '카카오톡 알림 켜기'에서 받음 (NOTI-005)"]
+  kakao_message [note: "[2차] 카카오톡 메시지 전송(talk_message) 선택 동의. 1차 로그인 때는 받지 않고, 2차 '카카오톡 알림 켜기'에서 추가 동의로 받음 (NOTI-005, 11/22)"]
   partner_share [note: '[3차] 회원: 파트너에게 미복용 알림 보내기 동의 (NOTI-006)']
   partner_receive [note: '[3차] 파트너: 미복용 알림 받기 동의 (NOTI-006)']
 }
@@ -334,7 +334,7 @@ Table health_profiles [headercolor: #3B82F6] {
   drinks_per_week int
   exercise_per_week int
   updated_at timestamptz [not null, default: `now()`]
-  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 가이드 생성 전 입력 유도 팝업'
+  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 처방 저장 전 입력 유도 팝업 (가이드가 저장 즉시 만들어지므로). 나중에 입력해도 이미 만든 가이드는 그대로'
 }
 
 Table user_conditions [headercolor: #3B82F6] {
@@ -370,7 +370,7 @@ Table daily_routines [headercolor: #F97316] {
 Table medical_documents [headercolor: #3B82F6] {
   id bigint [pk, increment]
   user_id bigint [not null, ref: > users.id]
-  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 내용이 달라 보이면 '처방전이 아닌 것 같아요' 경고"]
+  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 따로 경고하지 않고, 약 줄을 찾지 못하면(fail_reason no_drug_found) 문서 종류를 다시 고르게 함 (11/23)"]
   status document_status [not null, default: 'uploaded']
   hospital_name varchar(100)
   issued_date date [note: '처방일 / 조제일. 복용 시작일 기본값']
@@ -384,11 +384,11 @@ Table medical_documents [headercolor: #3B82F6] {
 Table document_pages [headercolor: #3B82F6] {
   id bigint [pk, increment]
   document_id bigint [not null, ref: > medical_documents.id]
-  page_no int [not null, note: '문서 전체 기준 순서. 확인 화면에서 바꿀 수 있음']
+  page_no int [not null, note: '문서 전체 기준 순서. 업로드 화면에서 정한 파일 순서 그대로 (확인 화면에서는 바꾸지 않음, 11/23)']
   original_name varchar(255) [note: '업로드한 파일 이름']
   mime_type varchar(50) [not null, note: 'image/jpeg, image/png, application/pdf']
   file_size_bytes int [not null, note: '파일 1개당 10MB 이하, 문서 합계 30MB 이하 (6-1, 6-3). PDF는 페이지마다 같은 값']
-  file_hash char(64) [not null, note: "원본 파일 SHA-256. 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). PDF는 페이지마다 같은 값"]
+  file_hash char(64) [not null, note: "원본 파일 SHA-256. PDF는 페이지마다 같은 값. [2차] 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). 1차는 값만 저장"]
   file_path varchar(500) [not null, note: '원본 파일 경로. PDF는 페이지마다 같은 경로']
   source_page_no int [not null, default: 1, note: '원본 파일 안의 페이지 (PDF), 이미지는 1']
   image_path varchar(500) [not null, note: 'OCR·원본 보기용 페이지 이미지 (PDF는 변환본, 6-8·6-9)']
@@ -410,7 +410,7 @@ Table drugs [headercolor: #3B82F6] {
   id bigint [pk, increment]
   item_seq varchar(20) [not null, unique, note: '식약처 품목기준코드']
   item_name varchar(200) [not null, note: '상품명']
-  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). DUR·중복 검사와 성분 검색은 drug_ingredients 사용']
+  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). 1차 성분명 검색(GET /drugs?q=)에도 사용. 2차부터 DUR·같은 성분 중복 검사는 drug_ingredients 사용']
   company varchar(100)
   efficacy text
   usage_text text
@@ -440,7 +440,7 @@ Table drug_ingredients [headercolor: #F97316] {
     ingredient_code
     ingredient_name
   }
-  Note: '[2차] 약 1개 = 성분 1~N개 (복합제). MED-007(DUR)·MED-001(성분 검색)이 2차로 내려가 같이 2차. 1차 화면 표시는 drugs.ingredient_name'
+  Note: '[2차] 약 1개 = 성분 1~N개 (복합제). MED-007(DUR)이 2차라 같이 2차. 1차 화면 표시·성분명 검색은 drugs.ingredient_name'
 }
 
 Table dur_contraindications [headercolor: #F97316] {
@@ -550,7 +550,7 @@ Table intake_logs [headercolor: #3B82F6] {
   log_date date [not null, note: '일과 기준 하루 (기상 ~ 다음 기상 전), KST']
   scheduled_time time [note: '그날 기준 복용 시각 스냅샷. 필요시 약은 NULL']
   dose_text varchar(50) [not null, note: '그날 용량 스냅샷']
-  is_as_needed boolean [not null, default: false, note: "'필요할 때 복용' 영역에서 체크"]
+  is_as_needed boolean [not null, default: false, note: "[2차] 필요시 약 체크 기록용. 1차는 '필요할 때 복용' 목록만 보여주고 기록하지 않음. 필요시 기록은 scheduled_time = NULL이라 아래 unique에 걸리지 않아 하루 여러 번 저장 가능"]
   status intake_status [not null, default: 'pending']
   taken_at timestamptz
   created_at timestamptz [not null, default: `now()`]
@@ -636,7 +636,7 @@ Table guide_attempts [headercolor: #F97316] {
   prompt_version_id bigint [ref: >? prompt_versions.id]
   verify_ms int [note: 'NFR-014 검증 5초 목표']
   created_at timestamptz [not null, default: `now()`]
-  Note: 'VERI-006 검증 결과 저장·통계 (2차, 6-5). 1차는 재시도 횟수를 메모리에서만 셈. 자동 재생성+오류 재시도 합쳐 최대 2회'
+  Note: 'VERI-006 검증 결과 저장·통계 (2차, 6-5). 1차는 자동 재시도·재생성 없이 [다시 시도] 버튼만 있고 검증 결과는 서버 로그에만 남김. 2차: 자동 재생성+오류 재시도 합쳐 최대 2회'
 }
 
 // ---------------------------------------------------------------------

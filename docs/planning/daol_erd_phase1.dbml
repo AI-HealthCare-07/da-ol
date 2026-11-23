@@ -167,7 +167,7 @@ Table users [headercolor: #3B82F6] {
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
-  Note: 'USER-002 카카오 회원가입·로그인, USER-008~011. 비밀번호·로그인 잠금 컬럼 없음 (카카오만 제공, 11/19). 파트너(NOTI-006)도 카카오 로그인한 회원 행으로 저장 (파트너 전용 가입 흐름은 팀 협의). 카카오 토큰은 회원당 1개라 별도 테이블 없이 컬럼으로 둠'
+  Note: 'USER-002 카카오 회원가입·로그인. 비밀번호·로그인 잠금 컬럼 없음 (카카오만 제공, 11/19)'
 }
 
 Table user_consents [headercolor: #3B82F6] {
@@ -180,7 +180,7 @@ Table user_consents [headercolor: #3B82F6] {
   indexes {
     (user_id, consent_type) [unique]
   }
-  Note: 'USER-002 필수 약관 동의 (추가 정보 입력 화면) + 카카오톡 메시지·파트너 공유 동의 (NOTI-005·006). 동의 철회 시 agreed=false 로 갱신'
+  Note: 'USER-002 필수 약관 동의 (추가 정보 입력 화면)'
 }
 
 Table refresh_tokens [headercolor: #3B82F6] {
@@ -203,7 +203,7 @@ Table health_profiles [headercolor: #3B82F6] {
   drinks_per_week int
   exercise_per_week int
   updated_at timestamptz [not null, default: `now()`]
-  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 가이드 생성 전 입력 유도 팝업'
+  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 처방 저장 전 입력 유도 팝업 (가이드가 저장 즉시 만들어지므로). 나중에 입력해도 이미 만든 가이드는 그대로'
 }
 
 Table user_conditions [headercolor: #3B82F6] {
@@ -222,7 +222,7 @@ Table user_conditions [headercolor: #3B82F6] {
 Table medical_documents [headercolor: #3B82F6] {
   id bigint [pk, increment]
   user_id bigint [not null, ref: > users.id]
-  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 내용이 달라 보이면 '처방전이 아닌 것 같아요' 경고"]
+  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 따로 경고하지 않고, 약 줄을 찾지 못하면(fail_reason no_drug_found) 문서 종류를 다시 고르게 함 (11/23)"]
   status document_status [not null, default: 'uploaded']
   hospital_name varchar(100)
   issued_date date [note: '처방일 / 조제일. 복용 시작일 기본값']
@@ -236,11 +236,11 @@ Table medical_documents [headercolor: #3B82F6] {
 Table document_pages [headercolor: #3B82F6] {
   id bigint [pk, increment]
   document_id bigint [not null, ref: > medical_documents.id]
-  page_no int [not null, note: '문서 전체 기준 순서. 확인 화면에서 바꿀 수 있음']
+  page_no int [not null, note: '문서 전체 기준 순서. 업로드 화면에서 정한 파일 순서 그대로 (확인 화면에서는 바꾸지 않음, 11/23)']
   original_name varchar(255) [note: '업로드한 파일 이름']
   mime_type varchar(50) [not null, note: 'image/jpeg, image/png, application/pdf']
   file_size_bytes int [not null, note: '파일 1개당 10MB 이하, 문서 합계 30MB 이하 (6-1, 6-3). PDF는 페이지마다 같은 값']
-  file_hash char(64) [not null, note: "원본 파일 SHA-256. 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). PDF는 페이지마다 같은 값"]
+  file_hash char(64) [not null, note: "원본 파일 SHA-256. PDF는 페이지마다 같은 값. [2차] 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). 1차는 값만 저장"]
   file_path varchar(500) [not null, note: '원본 파일 경로. PDF는 페이지마다 같은 경로']
   source_page_no int [not null, default: 1, note: '원본 파일 안의 페이지 (PDF), 이미지는 1']
   image_path varchar(500) [not null, note: 'OCR·원본 보기용 페이지 이미지 (PDF는 변환본, 6-8·6-9)']
@@ -262,7 +262,7 @@ Table drugs [headercolor: #3B82F6] {
   id bigint [pk, increment]
   item_seq varchar(20) [not null, unique, note: '식약처 품목기준코드']
   item_name varchar(200) [not null, note: '상품명']
-  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). DUR·중복 검사와 성분 검색은 drug_ingredients 사용']
+  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). 성분명 검색(GET /drugs?q=)에도 사용']
   company varchar(100)
   efficacy text
   usage_text text
@@ -355,7 +355,7 @@ Table dose_schedules [headercolor: #3B82F6] {
   indexes {
     (dose_condition_id, day_type) [unique]
   }
-  Note: 'MED-009 맞춤 시간표 (규칙 기반). 일과 변경 시 재계산(MED-011). 알림 시각도 이 값 사용(NOTI-001·005)'
+  Note: 'MED-009 맞춤 시간표 (규칙 기반, 1차는 기본 일과로 계산)'
 }
 
 Table intake_logs [headercolor: #3B82F6] {
@@ -366,7 +366,7 @@ Table intake_logs [headercolor: #3B82F6] {
   log_date date [not null, note: '일과 기준 하루 (기상 ~ 다음 기상 전), KST']
   scheduled_time time [note: '그날 기준 복용 시각 스냅샷. 필요시 약은 NULL']
   dose_text varchar(50) [not null, note: '그날 용량 스냅샷']
-  is_as_needed boolean [not null, default: false, note: "'필요할 때 복용' 영역에서 체크"]
+  is_as_needed boolean [not null, default: false, note: "[2차] 필요시 약 체크 기록용. 1차는 '필요할 때 복용' 목록만 보여주고 기록하지 않음. 필요시 기록은 scheduled_time = NULL이라 아래 unique에 걸리지 않아 하루 여러 번 저장 가능"]
   status intake_status [not null, default: 'pending']
   taken_at timestamptz
   created_at timestamptz [not null, default: `now()`]
@@ -412,7 +412,7 @@ Table guides [headercolor: #3B82F6] {
   indexes {
     (prescription_id, guide_type) [unique, note: '처방당 종류별 1개, 재생성 시 덮어씀']
   }
-    Note: 'GUIDE-001·002·004·007. 실패 시 행을 지우지 않고 status=failed, content=NULL로 유지 → 조회 API가 "아직 시작 안 함"(행 없음)과 "실패"를 구분, D-1 "다시 시도 필요" 표시. [다시 시도]는 같은 행을 generating으로 되돌림'
+  Note: 'GUIDE-001·002·004·007. 실패 시 행을 지우지 않고 status=failed, content=NULL로 유지 → 조회 API가 "아직 시작 안 함"(행 없음)과 "실패"를 구분, D-1 "다시 시도 필요" 표시. [다시 시도]는 같은 행을 generating으로 되돌림'
 }
 
 // ---------------------------------------------------------------------
