@@ -173,4 +173,4 @@
   ```
 - **기대 동작:**
   - `GET /scans/{scan_id}` 단계에서 `넥시움정 20mg`의 `dosage.needs_confirm: true` 반환
-  - `meal: null`, `timing: null` 상태로 확정 시 `POST /scans/{scan_id}/confirm` 응답의 `conditions_to_confirm` 배열에 `넥시움정 20mg`의 1·2회차(`dose_no: 1, 2`)가 `meal_unknown` / `timing_unknown` 사유로 반환되어 사용자 선택(`PATCH /dose-conditions/{condition_id}`) 유도
+  - `meal: null`, `timing: null` 상태로 확정 시 `POST /scans/{scan_id}/confirm` 응답의 `conditions_to_confirm` 배열에 `넥시움정 20mg`의 1·2회차(`dose_no: 1, 2`)가 `timing_unknown` 사유로 반환되어 사용자 선택(`PATCH /dose-conditions/{condition_id}`) 유도
