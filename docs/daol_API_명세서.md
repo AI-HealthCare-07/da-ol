@@ -1656,6 +1656,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 챗봇 질문은 저장 전에 개인정보 가리기 함수(`mask_text()`, 채민)를 거칩니다. 3-1 표 담당 추가는 민정님 PR에서 반영 | 채민 · 민정 |
 | 이전 대화 목록·내용 조회는 2차(CHAT-003)입니다. 1차는 채팅창을 열 때마다 대화방을 만들고 목록은 숨깁니다(AI 문서 D23) | 설아 |
 | 공공데이터 `drugs` 적재를 RAG 수집과 같은 파이프라인에서 처리합니다. 컬럼은 ERD `drugs`를 따르고, 데이터 기준일(`data_fetched_at`)을 함께 저장합니다 | 민정 · 채민(약품 매칭) |
+| ✅ 근거 검색의 벡터 DB는 PostgreSQL pgvector를 씁니다(11/23 공지). 문서 조각·임베딩 테이블과 임베딩 모델은 유정이 ERD에 추가합니다(11/27까지) | 민정 · 설아 |
 | 공용 테스트 처방 시나리오 10건(NFR-011)은 재경님이 `docs/test-prescriptions/`에 작성합니다(11/20 공지). 가이드·챗봇은 이 시나리오로 결과(처방에 없는 약·변경 권유·면책 문구 누락)를 확인합니다 | 재경 · 채민 |
 
 ### 7-1. [GET] /api/v1/prescriptions/{prescription_id}/guides
@@ -1775,7 +1776,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
     | 생활습관 항목 | 바꾸지 않고 항목을 뺍니다 |
 
     공공데이터 원문이 비어 있으면 고정 문구를 씁니다. `easy_text`(먹는 법)는 코드 틀로 만들어 `fallback` 대상이 아닙니다.
-  - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음).
+  - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음). 가이드를 만든 뒤에 건강 프로필을 입력했으면(`GET /users/me/health-profile`의 `is_registered: true`) 이 문구 대신 "입력한 건강 프로필은 다음 처방 가이드부터 반영돼요"를 표시합니다. 1차는 다시 만들기가 없어서 이미 만든 가이드는 바꾸지 않습니다(GUIDE-005 2차, 4장 `PUT /users/me/health-profile` 비고와 같음) → 문구는 설아님 확인
   - `content.sources`는 화면 하단 출처 목록입니다. 문장별 출처에서 겹치는 것을 뺀 목록이고, 실제로 문장에 쓴 근거만 넣습니다(GUIDE-003).
   - 면책 문구는 `disclaimer` 값을 그대로 고정 표시합니다(GUIDE-006).
 
@@ -1834,7 +1835,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 - 에러: 공통 에러만 사용
 - 비고:
   - `status`는 복약 가이드 기준입니다.
-  - 직접 입력한 처방은 `prescribed_date`가 `null`입니다. 이때 등록일을 대신 보여 줄지는 설아님과 정합니다.
+  - 직접 입력한 처방은 `prescribed_date`가 `null`입니다. 이때 화면은 등록일을 "○월 ○일 등록"으로 보여 줍니다(11/23 설아님 결정, 4장과 같음).
   - 가이드가 하나도 없으면 `items: []`이고, 화면은 "처방을 등록하면 가이드를 만들어 드려요"와 처방 등록 버튼을 보여 줍니다.
 
 ### 7-4. [GET] /api/v1/chat/suggestions
@@ -1951,7 +1952,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
   4. 숫자 칸과 `easy_text`는 확정 처방 값으로 코드 틀을 채우고, LLM은 설명 칸만 씁니다.
   5. `status = verifying`으로 바꾸고 `verify_guide()`(채민)로 검증합니다.
   6. 통과 → `completed` / 틀린 항목이 있으면 7-1 비고의 표대로 문장을 바꾸고 `check: "fallback"`(생활습관은 항목 빼기) → `completed_with_replacements` / LLM 오류·30초 초과 → `failed`(`content = NULL`)
-  - 검증 호출: 복약 가이드는 `verify_guide(guide, prescription, guide_id=…, attempt_no=1, is_last_attempt=True)`, 생활습관 가이드는 같은 함수에 `kind="lifestyle"`, `user_conditions`를 넘깁니다. 1차는 다시 쓰기가 없어 항상 한 번만 부릅니다.
+  - 검증 호출: 복약 가이드는 `verify_guide(guide, prescription, guide_id=…, kind="medication")`, 생활습관 가이드는 같은 함수에 `kind="lifestyle"`, `user_conditions`를 넘깁니다. 1차는 다시 쓰기가 없어 가이드마다 한 번만 부르고, 시도 횟수 인자(`attempt_no`·`is_last_attempt`)는 넘기지 않습니다(6장과 같음).
   - 약 단위 실패(숫자 불일치·빠진 약)는 코드 틀 때문에 생기지 않아야 합니다. 만약 생기면 코드 오류로 보고 기록을 남긴 뒤 그 가이드를 `failed`로 처리합니다.
 - 비고:
   - 1차 실행 방식: `start_guide_generation(db, prescription_id, background_tasks)`로 인자를 받아 FastAPI `BackgroundTasks`로 돌립니다(민정님 질문 ①안). `asyncio.create_task()`(②안)는 트랜잭션 커밋 전에 작업이 시작돼 가이드 행을 못 읽을 수 있어서 쓰지 않습니다. 그래서 `create_prescription()`도 `background_tasks`를 받아 자기 `db` 세션과 함께 넘겨 주세요(OCR 확정·직접 입력 두 API 모두). 가이드 행은 넘겨받은 `db`로 만듭니다. `start_guide_generation()`은 커밋하지 않고, 커밋은 `create_prescription()`을 부른 API(`POST /prescriptions`, `POST /scans/{scan_id}/confirm`)가 합니다(4장과 같음). 2차에 `ai_worker`로 옮길 때 같은 `run_guide_generation(guide_id)`를 그대로 부릅니다(백엔드 전달사항 2-3).
@@ -1988,6 +1989,8 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-20 | 민정 | 8번 1·2 확정 |
 | 2026-11-20 | 설아 | 처방 직접 입력(MED-001) 1차 반영: `POST /prescriptions`, 내부 함수 `create_prescription()` 추가(민정), 확정 API는 이 함수를 호출하도록 변경 |
 | 2026-11-20 | 설아 | 약 검색 통합: `/drugs/search?name=` → `/drugs?q=&limit=`(채민), 직접 입력 검색과 공용 |
+| 2026-11-23 | 유정 | 7-7 검증 호출에서 `attempt_no`·`is_last_attempt` 제거(6장과 맞춤), 7-3 처방일 없을 때 등록일 표시 반영, pgvector 사용 반영 |
+| 2026-11-20 | 유정 | 7-1 건강 프로필을 나중에 입력한 경우의 상단 문구 추가(4장 건강 프로필 비고 답변) |
 | 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
 | 2026-11-20 | 유정 | 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 변경(같은 트랜잭션에서 가이드 행 생성), 챗봇 검사 결과 저장 칸 `chat_messages.check_result` 반영 |
 | 2026-11-20 | 유정 | 7장 민정님 리뷰 반영: 30초 초과는 조회 때도 `failed` 처리·다시 시도 때 `updated_at` 갱신, 가이드 행 없을 때 처리, `start_guide_generation(prescription_id, background_tasks)`·새 DB 세션, 응답 키 항상 포함, `used_default_profile` 기준, 챗봇 `streaming` 60초 규칙, fetch 스트림 안내 |
