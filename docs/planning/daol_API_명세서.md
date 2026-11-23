@@ -1316,7 +1316,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - 에러: `NOT_FOUND`(404) 없는 약·다른 회원의 약 → "약 정보를 찾을 수 없어요" 후 내 약 목록으로 이동
 - 비고:
   - 처방 상세와 같은 조회 함수로 읽고, 약 한 줄만 골라 `drugs` 칸을 더합니다.
-  - `drug_info` 칸은 `drugs` 컬럼 이름을 그대로 씁니다. 비어 있는 칸은 `null`이고, 화면은 그 섹션을 숨깁니다. 하단에 `출처: {source_name} · {data_fetched_at} 기준`을 표시합니다(REQ-MED-002). `source_name`은 예시처럼 고정 값이 아니라 약마다 달라질 수 있습니다(e약은요에 없는 처방약은 의약품 허가정보로 보충 예정). 약별 출처를 `drugs`에 어떻게 저장할지는 `drugs` 적재 때 유정·민정님이 정하고, 이 칸은 그 값을 그대로 내려줍니다(11/23 유정님 리뷰).
+  - `drug_info` 칸은 `drugs` 컬럼 이름을 그대로 씁니다. 비어 있는 칸은 `null`이고, 화면은 그 섹션을 숨깁니다. 하단에 `출처: {source_name} · {data_fetched_at} 기준`을 표시합니다(REQ-MED-002). `source_name`은 약마다 달라질 수 있어서 `drugs.data_source`로 정합니다: `easy_drug` → "식품의약품안전처 의약품개요정보(e약은요)", `permit` → "식품의약품안전처 의약품 허가정보"(e약은요에 없는 처방약을 허가정보로 보충). 기준일은 `drugs.data_fetched_at`(우리가 받아 온 날)이고, `drugs.source_updated_at`(식약처 수정일)은 화면에 쓰지 않습니다(11/23 유정·민정).
   - `drug_info: null`이면 "이 약은 안내 정보가 없어요" + 내 복용 정보 카드만 보여 줍니다.
   - `schedule_status = needs_check`이면 내 복용 정보 카드에서 `reason`이 있는 회차마다 고르기 칩을 보여 주고, 그 회차의 `condition_id`로 6장 `PATCH /dose-conditions/{condition_id}`를 부릅니다. `timing_unknown` 회차는 식전·식후·취침 전과 끼니·분을, `meal_unknown` 회차는 끼니만 고릅니다(B-2 이어서 고르기와 같은 칩). 저장할 때마다 이 API를 다시 불러 화면을 갱신합니다.
   - 하루 횟수·필요시 여부·용량·일수는 B-2에서 저장 전에 확인한 값이라 1차에서는 고치지 않습니다. 확인이 끝난 약의 복용 시각·복용법 수정(REQ-MED-010, REQ-MED-004)은 2차입니다.
@@ -2398,6 +2398,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-23 | 설아 | 서버 도메인 `api.daol.site` 반영(daol.site 구매): 3-1 배포 두 행(Elastic IP·Let's Encrypt·rewrites 주소), 4-1 쿠키 행(Vercel → EC2 구간도 HTTPS)·Plan B 문구 |
 | 2026-11-23 | 설아 | 채민님 리뷰 반영: `expired`·`DOCUMENT_EXPIRED` 문구를 '파일이 삭제됐어요. 다시 올려 주세요'로 통일(취소에도 맞게), `DELETE /scans` 비고에 정리 작업이 파일이 남은 `confirmed`·`expired` 문서도 지운다고 추가 |
 | 2026-11-23 | 설아 | 유정님 리뷰 반영: 7-4 '복용 중인 약' 기준을 5-0(종료일이 오늘 이후)으로 통일, 5장 약 상세 `source_name`은 약마다 달라질 수 있다는 메모 추가 |
+| 2026-11-23 | 설아 | 5장 약 상세 `source_name`을 `drugs.data_source`(`easy_drug` / `permit`)로 정하도록 수정, 기준일은 `data_fetched_at`(ERD `drugs`에 `data_source`·`source_updated_at`·`is_otc` 추가, 11/23 유정·민정) |
 | 2026-11-23 | 유정 | 7-7 검증 호출에서 `attempt_no`·`is_last_attempt` 제거(6장과 맞춤), 7-3 처방일 없을 때 등록일 표시 반영, pgvector 사용 반영 |
 | 2026-11-20 | 유정 | 7-1 건강 프로필을 나중에 입력한 경우의 상단 문구 추가(4장 건강 프로필 비고 답변) |
 | 2026-11-20 | 유정 | 7-7 커밋 위치 표현을 4장과 맞춤(커밋은 `create_prescription()`을 부른 API) |
