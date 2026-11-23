@@ -370,7 +370,7 @@ Table daily_routines [headercolor: #F97316] {
 Table medical_documents [headercolor: #3B82F6] {
   id bigint [pk, increment]
   user_id bigint [not null, ref: > users.id]
-  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 내용이 달라 보이면 '처방전이 아닌 것 같아요' 경고"]
+  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 따로 경고하지 않고, 약 줄을 찾지 못하면(fail_reason no_drug_found) 문서 종류를 다시 고르게 함 (11/23)"]
   status document_status [not null, default: 'uploaded']
   hospital_name varchar(100)
   issued_date date [note: '처방일 / 조제일. 복용 시작일 기본값']
@@ -384,11 +384,11 @@ Table medical_documents [headercolor: #3B82F6] {
 Table document_pages [headercolor: #3B82F6] {
   id bigint [pk, increment]
   document_id bigint [not null, ref: > medical_documents.id]
-  page_no int [not null, note: '문서 전체 기준 순서. 확인 화면에서 바꿀 수 있음']
+  page_no int [not null, note: '문서 전체 기준 순서. 업로드 화면에서 정한 파일 순서 그대로 (확인 화면에서는 바꾸지 않음, 11/23)']
   original_name varchar(255) [note: '업로드한 파일 이름']
   mime_type varchar(50) [not null, note: 'image/jpeg, image/png, application/pdf']
   file_size_bytes int [not null, note: '파일 1개당 10MB 이하, 문서 합계 30MB 이하 (6-1, 6-3). PDF는 페이지마다 같은 값']
-  file_hash char(64) [not null, note: "원본 파일 SHA-256. 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). PDF는 페이지마다 같은 값"]
+  file_hash char(64) [not null, note: "원본 파일 SHA-256. PDF는 페이지마다 같은 값. [2차] 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). 1차는 값만 저장"]
   file_path varchar(500) [not null, note: '원본 파일 경로. PDF는 페이지마다 같은 경로']
   source_page_no int [not null, default: 1, note: '원본 파일 안의 페이지 (PDF), 이미지는 1']
   image_path varchar(500) [not null, note: 'OCR·원본 보기용 페이지 이미지 (PDF는 변환본, 6-8·6-9)']
