@@ -256,7 +256,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 
 > AI 파트 기획 문서 v5의 6-1(AI A), 4-3, 4-10, 11-2를 1-4 양식으로 옮겨 적습니다.
 
-> 퇴원요약지(OCR-006·007)는 범위에서 빠졌으므로 문서 종류는 `prescription`(처방전) / `pill_bag`(약봉투) 두 가지만 받습니다. AI 문서 4-3의 `diagnoses[]`·`discharge_notes[]`·`excluded_drugs[]`와 페이지 순서 바꾸기는 넣지 않았습니다.
+> 퇴원요약지(OCR-006·007)는 범위에서 빠졌으므로 문서 종류는 `prescription`(처방전) / `pill_envelope`(약봉투) 두 가지만 받습니다. AI 문서 4-3의 `diagnoses[]`·`discharge_notes[]`·`excluded_drugs[]`와 페이지 순서 바꾸기는 넣지 않았습니다.
 > AI 문서 4-3에서 바꾼 점: `scan_id`는 숫자(`medical_documents.id`), 약품 매칭은 `drug_code` 대신 `drug_id`(`drugs.id`)를 씁니다(1번 공통 규칙). 감량 단계(`taper_steps`)·간격(`interval_hours`)·약 형태(`form`)는 1차 직접 입력 범위에 맞춰 뺐습니다.
 
 | 확인할 것 | 같이 볼 사람 |
@@ -279,7 +279,12 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | 5장 `get_confirmed_prescription()` 반환 형식의 `prescription_drug_id`를 6·7장과 같은 `prescription_item_id`로 맞춥니다(설아님이 4장 리뷰 답변 (10)에서 바꾸기로 함) | 설아 |
 | 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 `create_prescription()`이 저장할 때 아침·점심·저녁으로 채웁니다. 그런데 확인 화면(B-2)에서는 끼니가 비어 '확인 필요'로 보입니다. 끼니 기본값 채우기를 `calculate_schedule()`처럼 순수 함수로 빼 주시면, `GET /scans`도 같은 함수로 미리 채워 보여 주겠습니다 → 민정님 확인 | 민정 · 재경 |
 | ✅ 홈의 끼니 고르기도 `PATCH /dose-conditions/{condition_id}`를 씁니다. 끼니만 보내도 되도록 부분 수정으로 바꿨습니다. 홈의 `schedule_check_items`에 `conditions: [{condition_id, dose_no, reason}]`을 넣기로 했습니다(4장 설아님 리뷰). `reason`은 확정 응답·`ConditionToConfirm`과 같은 값입니다 | 설아 · 민정 |
-| `parsed_by` 값: 6장은 `dictionary` / `llm` / `user`이고, ERD `dose_conditions.parsed_by`에는 `rule` / `user`만 있습니다(4장 4-8 E9). `dictionary`는 `rule`로 저장해도 되지만, LLM이 해석한 조건(`dosage_v1`)을 구분하려면 ERD에 `llm` 값이 필요합니다 → 민정님 확인 | 민정 |
+| ✅ ERD v2(`daol_erd_v2.dbml`)에 맞췄습니다: `parsed_by`는 `rule` / `user`(LLM 복용법 해석은 ERD대로 2차), 문서 종류 `pill_envelope`, 확정 Body `drug_name`은 처방전에 적힌 이름(`drug_name_raw`), 원문 줄 `raw_text`(`source_text`), `is_oral`('먹는 약 아님'), `times_per_day` 1~4·`total_days` 1~365, 프롬프트 버전 `parse_document_v1`(`prompt_kind`) | 민정 · 유정 |
+| 1차는 사전에 없는 복용법 문장을 LLM으로 해석하지 않고 바로 '복용 조건 확인 필요'로 둡니다(ERD `parsed_by.llm` [2차]). AI 기획 문서의 1차 복용법 해석(LLM) 범위도 2차로 옮겨야 합니다 → 유정님과 AI 문서 반영 | 유정 · 민정 |
+| ERD 칸 이름과 다른 API 이름: `document_type`(ERD `doc_type`), `expires_at`(ERD `image_delete_due_at`). 1번 공통 규칙(필드 이름 = ERD 컬럼)대로 바꿀지 정해 주세요. `prescribed_date`는 `prescriptions.prescribed_date`로 저장되므로 그대로 둡니다 | 민정 |
+| ERD `document_pages.file_hash`의 "이미 올린 사진이에요"(같은 파일 다시 올리기): 1차에 넣는다면 `POST /scans`에서 막지 않고 응답에 `duplicate_pages: [1]`로 알려 주는 안을 제안합니다 | 설아 · 민정 |
+| ERD `document_pages.page_no`의 "확인 화면에서 바꿀 수 있음"(페이지 순서 바꾸기)과 `doc_type`의 "'처방전이 아닌 것 같아요' 경고"는 6장에 없습니다. 1차 화면에 필요한지 정해 주세요 | 설아 |
+
 
 ### 6-1. 진행 상태 (`document_status` + `step`)
 
@@ -325,12 +330,20 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | `candidates` | 비슷한 약 최대 3개(`candidates[]`) | 후보 3개 중 고르기 + [다른 약 검색] |
 | `none` | 비슷한 약 없음 | "등록되지 않은 약품이에요" + [약 검색] (`GET /drugs`) |
 
+**먹는 약 여부**(`is_oral`): 매칭된 약의 `drugs.is_oral`을 그대로 줍니다(OCR-003·004, 1차는 먹는 약만).
+
+| `is_oral` | 화면 | 확정 |
+| --- | --- | --- |
+| `true` | 그대로 표시 | 저장 |
+| `false` | 회색 + "먹는 약이 아니라 등록되지 않아요" | Body에서 빼고 보냄(저장 안 함) |
+| `null` | 매칭이 없거나 제형을 모름 → "먹는 약이 맞나요?" | 회원이 남겨 두면 저장 |
+
 **복용 조건**(`dosage`): AI 문서 4-3-1을 1차 범위로 줄였습니다.
 
 | 칸 | 값 |
 | --- | --- |
-| `parsed_by` | `dictionary`(표현 사전) / `llm` / `user`(회원이 고름) |
-| `needs_confirm` | `llm`이거나 해석 실패, 또는 1차에서 계산하지 않는 조건이면 `true` → "복용 조건을 확인해 주세요" |
+| `parsed_by` | `rule`(표현 사전) / `user`(회원이 고름). ERD의 `llm`은 2차입니다 |
+| `needs_confirm` | 표현 사전에 없는 문장이거나, 1차에서 계산하지 않는 조건이면 `true` → "복용 조건을 확인해 주세요". 1차는 LLM으로 문장을 해석하지 않고 회원이 목록에서 고릅니다(ERD `parsed_by.llm` 2차) |
 | `as_needed` | 필요시 복용이면 `true`. 시간표·알림에서 빠집니다(MED-008) |
 | `doses[]` | 회차마다 `{dose_no, meal, timing, offset_min}` |
 | └ `meal` | `breakfast` / `lunch` / `dinner` / `null`(끼니 모름) |
@@ -365,7 +378,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | 칸 | 필수 | 설명 |
   | --- | --- | --- |
   | `files` | O | 파일 여러 개. jpg·png·pdf, 1개 10MB·합계 30MB. 올린 순서대로 페이지 번호를 매깁니다 |
-  | `document_type` | O | `prescription`(처방전) / `pill_bag`(약봉투) |
+  | `document_type` | O | `prescription`(처방전) / `pill_envelope`(약봉투) |
 
   ```
   files: 처방전_앞.jpg, 처방전_뒤.jpg
@@ -424,7 +437,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     "expires_at": "2026-11-20T21:30:00+09:00",
     "pages": [{ "page_no": 1 }, { "page_no": 2 }],
     "masked": true,
-    "prompt_version": "structure_v1",
+    "prompt_version": "parse_document_v1",
     "edited": false,
     "hospital_name": { "value": "가상내과의원", "confidence": 0.97, "needs_check": false },
     "prescribed_date": { "value": "2026-11-20", "confidence": 0.93, "needs_check": false },
@@ -435,12 +448,13 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
         "raw_text": "가상정5mg 1 3 5 식후30분",
         "drug_name": { "value": "가상정5mg", "confidence": 0.91, "needs_check": false },
         "match": { "status": "exact", "drug_id": 1203, "candidates": [] },
+        "is_oral": true,
         "dose_per_time": { "text": "1정", "min": 1, "max": 1, "unit": "정", "parsed": true, "confidence": 0.95, "needs_check": false },
         "times_per_day": { "value": 3, "confidence": 0.72, "needs_check": true },
         "total_days": { "value": 5, "confidence": 0.94, "needs_check": false },
         "instruction_text": "식후30분",
         "dosage": {
-          "parsed_by": "dictionary",
+          "parsed_by": "rule",
           "needs_confirm": false,
           "as_needed": false,
           "doses": [
@@ -464,12 +478,13 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
             { "drug_id": 2211, "item_name": "가상캡슐 500mg", "company": "가상제약", "similarity": 0.79 }
           ]
         },
+        "is_oral": null,
         "dose_per_time": { "text": "1캡슐", "min": 1, "max": 1, "unit": "캡슐", "parsed": true, "confidence": 0.9, "needs_check": false },
         "times_per_day": { "value": 2, "confidence": 0.88, "needs_check": false },
         "total_days": { "value": 5, "confidence": 0.9, "needs_check": false },
         "instruction_text": null,
         "dosage": {
-          "parsed_by": "dictionary",
+          "parsed_by": "rule",
           "needs_confirm": true,
           "as_needed": false,
           "doses": [
@@ -541,7 +556,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   ② 문서 종류 다시 고르기 → `202`
 
   ```json
-  { "document_type": "pill_bag" }
+  { "document_type": "pill_envelope" }
   ```
 - Response Body (200 / 202):
 
@@ -550,7 +565,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   ② 202:
 
   ```json
-  { "scan_id": 42, "status": "uploaded", "step": "structuring", "document_type": "pill_bag" }
+  { "scan_id": 42, "status": "uploaded", "step": "structuring", "document_type": "pill_envelope" }
   ```
 - 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing` → `fields`의 칸 표시 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
@@ -592,13 +607,14 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       {
         "line_no": 1,
         "drug_id": 1203,
-        "drug_name": "가상정 5mg",
+        "drug_name": "가상정5mg",
+        "raw_text": "가상정5mg 1 3 5 식후30분",
         "dose_per_time": { "text": "1정", "min": 1, "max": 1, "unit": "정", "parsed": true },
         "times_per_day": 3,
         "total_days": 5,
         "instruction_text": "식후30분",
         "dosage": {
-          "parsed_by": "dictionary",
+          "parsed_by": "rule",
           "as_needed": false,
           "doses": [
             { "dose_no": 1, "meal": "breakfast", "timing": "after_meal", "offset_min": 30 },
@@ -611,13 +627,14 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       {
         "line_no": 2,
         "drug_id": 2210,
-        "drug_name": "가상캡슐 250mg",
+        "drug_name": "가상캡슐",
+        "raw_text": "가상캡슐 1 2 5",
         "dose_per_time": { "text": "1캡슐", "min": 1, "max": 1, "unit": "캡슐", "parsed": true },
         "times_per_day": 2,
         "total_days": 5,
         "instruction_text": null,
         "dosage": {
-          "parsed_by": "dictionary",
+          "parsed_by": "rule",
           "as_needed": false,
           "doses": [
             { "dose_no": 1, "meal": null, "timing": null, "offset_min": null },
@@ -633,10 +650,12 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | 필수 칸 | 규칙 |
   | --- | --- |
   | `drugs` | 1개 이상 |
-  | `drugs[].drug_name` | 빈칸 불가. 공공데이터에 없는 약은 `drug_id: null`로 이름만 저장 가능 |
+  | `drugs[].drug_name` | 빈칸 불가. 처방전에 적힌 약품명(회원이 고쳤으면 고친 이름)이며 `prescription_items.drug_name_raw`로 저장됩니다. 화면에 보일 약 이름은 `drug_id`로 `drugs.item_name`을 읽습니다. 공공데이터에 없는 약은 `drug_id: null`로 이름만 저장 가능 |
+  | `drugs[].raw_text` | 선택. 처방전 원문 줄(가린 값)이며 `prescription_items.source_text`로 저장됩니다. 회원이 새로 추가한 줄은 `null` |
+  | `drugs[].drug_id` | `drugs.is_oral = false`인 약은 받지 않습니다(먹는 약만 등록) |
   | `drugs[].dose_per_time.text` | 빈칸 불가(`parsed: false`도 저장 가능) |
-  | `drugs[].times_per_day` | 1 이상의 정수. `as_needed: true`면 `null` 가능 |
-  | `drugs[].total_days` | 1 이상의 정수 |
+  | `drugs[].times_per_day` | 1~4의 정수(ERD). `as_needed: true`면 `null` 가능 |
+  | `drugs[].total_days` | 1~365의 정수(ERD) |
   | `drugs[].dosage.cycle.type`, `start_date` | 1차는 `daily`만 |
   | `drugs[].dosage.doses[].timing` | `after_meal` / `before_meal` / `bedtime` / `null`. `null`이거나 식전·식후인데 `meal`이 `null`이면 '복용 조건 확인 필요'로 저장됩니다 |
 - Response Body (201):
@@ -696,8 +715,8 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   ```json
   {
     "items": [
-      { "drug_id": 1203, "item_name": "가상정 5mg", "ingredient_name": "가상성분", "company": "가상제약", "has_public_data": true, "matched_by": "exact", "similarity": 1.0 },
-      { "drug_id": 1204, "item_name": "가상정 10mg", "ingredient_name": "가상성분", "company": "가상제약", "has_public_data": true, "matched_by": "prefix", "similarity": 0.86 }
+      { "drug_id": 1203, "item_name": "가상정 5mg", "ingredient_name": "가상성분", "company": "가상제약", "is_oral": true, "has_public_data": true, "matched_by": "exact", "similarity": 1.0 },
+      { "drug_id": 1204, "item_name": "가상정 10mg", "ingredient_name": "가상성분", "company": "가상제약", "is_oral": true, "has_public_data": true, "matched_by": "prefix", "similarity": 0.86 }
     ]
   }
   ```
@@ -708,7 +727,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 정렬: 정확 일치(`exact`) → 앞부분 일치(`prefix`) → 이름 유사도(`similar`, pg_trgm) 순입니다. 유사도 기준은 0.3에서 시작해 가상 처방전 테스트 후 조정합니다.
   - 결과가 없으면 `{"items": []}`를 돌려줍니다. 화면에는 "검색 결과가 없어요. 약 이름 그대로 저장할 수도 있어요"를 띄웁니다.
   - OCR 약품 매칭은 HTTP를 거치지 않고 같은 검색 함수를 서버 안에서 부릅니다. 정확 일치가 1개면 `exact`, 아니면 기준 이상 상위 3개를 `candidates`, 없으면 `none`입니다.
-  - 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)을 그대로 씁니다(4장 4-9 #20). `GET /scans`의 매칭 후보(`candidates[]`)도 같은 이름입니다. 확정 Body의 `drug_name`에는 고른 약의 `item_name`을 넣습니다. 약 상세는 설아님의 `GET /drugs/{drug_id}`를 씁니다.
+  - 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)을 그대로 씁니다(4장 4-9 #20). `GET /scans`의 매칭 후보(`candidates[]`)도 같은 이름입니다. 확정 Body의 `drug_name`은 고른 약의 `item_name`이 아니라 처방전에 적힌 이름입니다. 약 상세는 설아님의 `GET /drugs/{drug_id}`를 씁니다.
   - 입력할 때마다 부르지 않도록 프론트에서 300ms 디바운스를 부탁드립니다.
 
 ### [PATCH] /api/v1/dose-conditions/{condition_id}
@@ -858,9 +877,10 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | --- | --- | --- | --- |
 | `parse_dose_text(text)` | 6장 `PATCH /scans`·확정 API, 5장 `get_confirmed_prescription()`(설아) | `"1/2정"` → `{"text": "1/2정", "min": 0.5, "max": 0.5, "unit": "정", "parsed": true}` | 표현 사전(`dosage_dict_v1`)만 씁니다. ERD에는 `dose_text`만 저장되므로 조회할 때 이 함수로 다시 만듭니다(7-7 비고). 같은 글자면 항상 같은 결과입니다. 읽을 수 없으면 `min`·`max`·`unit`이 `null`, `parsed: false` |
 | `mask_text(text)` | 6장 OCR 글자(LLM에 넘기기 전), 7-6 챗봇 질문(저장 전) | 글자 → 가린 글자(`[주민번호]`, `[연락처]`, `[이메일]`, `[환자번호]`, `[면허번호]`) | 규칙(정규식)으로 가립니다. 이름은 처방전의 '성명' 칸처럼 위치로 알 수 있을 때만 `[이름]`으로 가리고, 챗봇 질문 속 이름은 1차에 가리지 않습니다 |
-| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | VERI-004 ⓐⓑⓒ 검사. 질문에 나온 약은 처방에 없어도 실패로 보지 않습니다. 결과는 `chat_messages.check_result`에 **기록만** 하고 화면에는 보내지 않습니다(정정 안내는 2차 VERI-007). 답변 문장은 결과에 다시 담지 않습니다. 오류가 나도 호출하는 쪽은 답변을 막지 않습니다 |
+| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | VERI-004 ⓐⓑⓒ 검사. 질문에 나온 약은 처방에 없어도 실패로 보지 않습니다. 결과는 **기록만** 하고 화면에는 보내지 않습니다(정정 안내는 2차 VERI-007). 저장은 새 칸 대신 ERD `chat_messages.verify_status`([2차] `not_needed / passed / corrected`)를 1차부터 쓰고, '걸렸지만 화면에는 안 보냄' 값 `flagged`를 추가하는 안을 제안합니다 → 민정·유정님 확인. 답변 문장은 결과에 다시 담지 않습니다. 오류가 나도 호출하는 쪽은 답변을 막지 않습니다 |
 
 <!-- 채민 END -->
+
 
 ---
 
@@ -1226,3 +1246,4 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-20 | 유정 | 7장 리뷰 반영: `failed`·30초 기준 확정 표시, 가이드 `dose_times`는 조회 때 시간표 값으로 채움(채민님 제안), 생활습관 가이드 검증 확인 요청 추가 |
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
 | 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
+| 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd_v2.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
