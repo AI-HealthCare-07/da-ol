@@ -877,7 +877,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | --- | --- | --- | --- |
 | `parse_dose_text(text)` | 6장 `PATCH /scans`·확정 API, 5장 `get_confirmed_prescription()`(설아) | `"1/2정"` → `{"text": "1/2정", "min": 0.5, "max": 0.5, "unit": "정", "parsed": true}` | 표현 사전(`dosage_dict_v1`)만 씁니다. ERD에는 `dose_text`만 저장되므로 조회할 때 이 함수로 다시 만듭니다(7-7 비고). 같은 글자면 항상 같은 결과입니다. 읽을 수 없으면 `min`·`max`·`unit`이 `null`, `parsed: false` |
 | `mask_text(text)` | 6장 OCR 글자(LLM에 넘기기 전), 7-6 챗봇 질문(저장 전) | 글자 → 가린 글자(`[주민번호]`, `[연락처]`, `[이메일]`, `[환자번호]`, `[면허번호]`) | 규칙(정규식)으로 가립니다. 이름은 처방전의 '성명' 칸처럼 위치로 알 수 있을 때만 `[이름]`으로 가리고, 챗봇 질문 속 이름은 1차에 가리지 않습니다 |
-| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | VERI-004 ⓐⓑⓒ 검사. 질문에 나온 약은 처방에 없어도 실패로 보지 않습니다. 결과는 **기록만** 하고 화면에는 보내지 않습니다(정정 안내는 2차 VERI-007). 저장은 새 칸 대신 ERD `chat_messages.verify_status`([2차] `not_needed / passed / corrected`)를 1차부터 쓰고, '걸렸지만 화면에는 안 보냄' 값 `flagged`를 추가하는 안을 제안합니다 → 민정·유정님 확인. 답변 문장은 결과에 다시 담지 않습니다. 오류가 나도 호출하는 쪽은 답변을 막지 않습니다 |
+| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | 저장은 `chat_messages.check_result`(jsonb)에 반환값을 그대로 넣습니다(E11, 11/23 확정). 통과는 `{"passed": true, "types": [], "rules_version": "verify_rules_v1"}`, 검사를 하지 않았거나 오류가 나면 `null`, 회원 질문 행은 항상 `null`입니다. `verify_status`는 정정 안내(VERI-007)를 넣는 2차에 다시 정합니다. |
 
 <!-- 채민 END -->
 
