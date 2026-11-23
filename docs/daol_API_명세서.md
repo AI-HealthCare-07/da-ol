@@ -514,15 +514,26 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     ],
     "schedule_check_items": [
       {
+        "prescription_id": 512,
         "prescription_item_id": 1304,
         "drug_name": "물방울정",
         "dose_text": "1정",
         "condition_label": "1일 2회 식후 30분",
         "schedule_status": "needs_check",
+        "reason": "meal_unknown",
         "conditions": [
           { "condition_id": 5014, "dose_no": 1, "reason": "meal_unknown", "timing": "after_meal", "offset_min": 30 },
           { "condition_id": 5015, "dose_no": 2, "reason": "meal_unknown", "timing": "after_meal", "offset_min": 30 }
         ]
+      },
+      {
+        "prescription_id": 512,
+        "prescription_item_id": 1305,
+        "drug_name": "구름정",
+        "dose_text": "1정",
+        "condition_label": "복용 조건 확인 필요",
+        "schedule_status": "needs_check",
+        "reason": "timing_unknown"
       }
     ],
     "day_summary": { "log_date": "2026-11-20", "done_count": 2, "total_count": 4 },
@@ -536,9 +547,17 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - `log_date`는 ERD상 '기상 ~ 다음 기상 전' 하루지만, 1차는 기본 일과(기상 07:00, 취침 23:00)라 KST 달력 날짜와 같습니다.
   - 지난 날짜의 `pending`은 `missed`로 바꿉니다. 스케줄러 없이 이 API와 PATCH가 불릴 때 오늘 이전 `pending`을 `missed`로 갱신합니다. 2차에 알림 스케줄러가 생기면 자정 작업으로 옮깁니다. `/home/today`도 같은 함수를 씁니다(설아님 확인, 11/23)
   - 필요시 약(`as_needed_items`)은 1차에서 목록만 보여주고 체크하지 않습니다(11/23 확정, 4-9 6). ERD `intake_logs`의 필요시 체크용 칸(`is_as_needed`, `scheduled_time = NULL`)은 2차에 `POST /intakes`를 만들 때 씁니다.
-  - `schedule_check_items`는 `dose_schedules.status = needs_check`인 약입니다. 복용 기록이 없습니다. 홈에서 바로 끼니를 고르게 하므로(11/20 설아·채민 결정) 약마다 확인이 필요한 회차를 `conditions`에 담습니다.
-  - `conditions`에는 `needs_check`인 회차만 `dose_no` 순으로 담습니다. `reason`은 `create_prescription()`의 `ConditionToConfirm.reason`과 같은 값입니다: `dose_conditions.condition_type`이 `NULL`이면 `timing_unknown`, 식전·식후인데 `meal`이 `NULL`이면 `meal_unknown`. `timing`·`offset_min`은 지금 저장된 값입니다(`timing_unknown`이면 둘 다 `null`).
-  - 홈은 회차마다 `PATCH /dose-conditions/{condition_id}`(6장)를 따로 부릅니다. `meal_unknown`은 끼니만 고르고 `timing`·`offset_min`은 받은 값을 그대로 보냅니다. `timing_unknown`은 6장 PATCH 규칙대로 조건 전체(식전·식후·취침 전)를 골라야 합니다 → 홈 화면 처리 설아님 확인
+  - `schedule_check_items`는 `dose_schedules.status = needs_check`인 약입니다. 복용 기록이 없습니다. 약마다 `reason`으로 홈 화면 처리를 나눕니다(11/23 설아님 확인).
+
+    | `reason` | 뜻 | 홈 화면 | 내려주는 칸 |
+    | --- | --- | --- | --- |
+    | `meal_unknown` | 식전·식후는 읽었지만 끼니를 모름 | 홈에서 바로 끼니를 고름(11/20 설아·채민 결정) | 공통 칸 + `conditions` |
+    | `timing_unknown` | 복용법 자체를 못 읽음 | 끼니를 고르지 않고 안내 카드만 보여 줌. "처방 상세에서 확인하기" → 약 수정 화면에서 `PATCH /prescription-items/{prescription_item_id}`로 복용법을 고침 | 공통 칸만(`conditions` 없음) |
+
+  - 공통 칸: `prescription_id`, `prescription_item_id`, `drug_name`, `dose_text`, `condition_label`, `schedule_status`, `reason`
+  - 한 약에 두 `reason`이 섞이면(회차 하나라도 `timing_unknown`) 그 약은 `timing_unknown`으로 내려줍니다. 복용법을 고치는 화면에서 회차 전체를 다시 정하기 때문입니다.
+  - `meal_unknown`의 `conditions`에는 `needs_check`인 회차만 `dose_no` 순으로 담습니다. 회차의 `reason`은 `create_prescription()`의 `ConditionToConfirm.reason`과 같은 값입니다: `dose_conditions.condition_type`이 `NULL`이면 `timing_unknown`, 식전·식후인데 `meal`이 `NULL`이면 `meal_unknown`. `timing`·`offset_min`은 지금 저장된 값입니다.
+  - 홈은 `meal_unknown` 회차마다 `PATCH /dose-conditions/{condition_id}`(6장)를 따로 부릅니다. 끼니만 고르고 `timing`·`offset_min`은 받은 값을 그대로 보냅니다.
   - 한 약의 회차를 모두 고르면 `recalculate_schedule()`이 시간표와 복용 기록을 만들어 그 약이 `slots`로 옮겨갑니다. 홈은 PATCH 응답 뒤 이 API(또는 `/home/today`)를 다시 불러 화면을 갱신합니다.
   - `condition_label`은 서버가 `dose_conditions`로 만든 표시용 문구입니다. 프론트는 그대로 보여줍니다.
 
@@ -759,7 +778,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       start_date: date
 
   class DosageIn(BaseModel):
-      parsed_by: Literal["dictionary", "llm", "user"]
+      parsed_by: Literal["rule", "user"]          # ERD v2. LLM 해석은 2차(4-8 E9)
       as_needed: bool = False
       doses: list[DoseIn]                        # 필요시 약은 빈 배열
       cycle: CycleIn
@@ -777,7 +796,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       drug_name: str
       raw_text: str | None = None                # OCR 원문 줄. 있으면 저장
       dose_per_time: DosePerTimeIn
-      times_per_day: int | None                  # 6장은 필요시 약이면 None 허용 → 4-8 E10
+      times_per_day: int | None                  # 1~4. 필요시 약(as_needed)만 None 허용(4-8 E10)
       total_days: int
       instruction_text: str | None = None        # OCR 원문 복용법(예: "식후30분")
       dosage: DosageIn
@@ -807,7 +826,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   | `doses[].meal` | `dose_conditions.meal` |
   | `doses[].offset_min` | `dose_conditions.offset_minutes` |
   | `dosage.as_needed: true` | `dose_conditions` 1행(`slot_no = 1`, `condition_type = as_needed`) |
-  | `dosage.parsed_by` | `dose_conditions.parsed_by`: `dictionary` → `rule`, `user` → `user`, `llm` → ERD에 값 없음(4-8 E9) |
+  | `dosage.parsed_by` | `dose_conditions.parsed_by` 같은 값(`rule` / `user`, 4-8 E9) |
   | `instruction_text` | 그 약 모든 회차의 `dose_conditions.source_phrase` |
   | (함수가 정함) | `time_basis`: 시각을 계산할 수 있으면 `prescription`, 확인 필요면 `needs_check` / `user_confirmed`: `condition_type`이 있으면 `true` |
 - 반환:
@@ -829,7 +848,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
       reason: Literal["meal_unknown", "timing_unknown"]
   ```
 - 처리 순서(한 트랜잭션):
-  1. 입력 검증. 두 API 공통 규칙(약 1개 이상, `drug_name`·`dose_per_time.text` 빈칸 불가, `total_days` 1 이상, `cycle.type = daily`, `timing` 허용 값)을 검사합니다. 직접 입력만의 규칙(`POST /prescriptions` 표)은 부른 API가 먼저 검사합니다. 실패하면 `PrescriptionValidationError(fields)`를 던지고, 부른 API가 `VALIDATION_ERROR`로 바꿉니다. `fields` 경로는 입력 이름(`drugs[1].total_days`)을 씁니다.
+  1. 입력 검증. 두 API 공통 규칙(약 1개 이상, `drug_name`·`dose_per_time.text` 빈칸 불가, `times_per_day` 1~4(필요시 약만 `None` 가능), `total_days` 1~365, `cycle.type = daily`, `timing` 허용 값, `drug_id`가 있으면 `drugs.is_oral = false`인 약은 거절(먹는 약만, ERD v2))을 검사합니다. 직접 입력만의 규칙(`POST /prescriptions` 표)은 부른 API가 먼저 검사합니다. 실패하면 `PrescriptionValidationError(fields)`를 던지고, 부른 API가 `VALIDATION_ERROR`로 바꿉니다. `fields` 경로는 입력 이름(`drugs[1].total_days`)을 씁니다.
   2. `prescriptions` 저장(`status = active`)
   3. `prescription_items` 저장
   4. `dose_conditions` 회차별 저장
@@ -914,16 +933,16 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | No | 테이블 | 제안 | 이유 |
 | --- | --- | --- | --- |
 | E1 | `users` | `gender`에 enum(`male / female`) 추가 | 지금은 `varchar(10)`이라 값이 정해져 있지 않음 |
-| E2 | `users` | `profile_image_url varchar(500)` 추가(2차 내 정보 화면 때라도) | REQ-USER-002·008에 '동의한 경우 저장·조회'가 있음 |
+| E2 | `users` | ✅ 2차로 미룸. 1차는 기본 아바타만 보여 줌(11/23 설아, 요구사항 USER-002·와이어프레임 반영 완료). 2차 내 정보 화면 때 `profile_image_url varchar(500)` 추가 | REQ-USER-002·008에 '동의한 경우 저장·조회'가 있음 |
 | E3 | `user_consents` | `terms_version varchar(20)` 추가 | 약관이 바뀌었을 때 어느 버전에 동의했는지 남겨야 함. 지금은 (회원, 종류) unique라 다시 동의하면 이력도 덮어씀 |
 | E4 | `consent_type` | ✅ 1차는 카카오 동의 항목에서 `talk_message`를 빼기로 함(11/23 설아). 1차 enum은 그대로 두고, 2차 알림 때 enum에 추가 | 알림이 2차이고, 요구사항에도 동의 안 한 회원은 알림 설정에서 추가 동의를 받게 되어 있음 |
 | E5 | `dose_conditions` | `interval_hours` 칸 정리(1차 `dose_condition_type`에 간격 값이 없음) | 1차에서 쓰지 않는 칸. 6장도 간격을 1차에서 뺌 |
 | E6 | `intake_logs` | `(prescription_item_id, log_date, scheduled_time)` unique는 필요시 기록(`scheduled_time = NULL`)에서 PostgreSQL이 NULL끼리 다르게 봐 여러 행이 허용됨. 의도대로라면 note에 적어 두기 | 필요시 약을 하루 여러 번 체크하는 데 필요 |
 | E7 | `chat_messages` | note의 `counts_toward_quota` 칸이 테이블에 없음 | 하루 사용량(CHAT-006)이 2차라 2차에 추가해도 됨 |
 | E8 | `guides` | ✅ `guide_status`에 `failed` 추가, 실패해도 행 유지(11/20 반영) | 7장 요청 |
-| E9 | `parsed_by` | 6장은 `dictionary / llm / user`, ERD는 `rule / user`. `dictionary`는 `rule`로 저장하고, 1차에 LLM 해석이 남아 있으면 enum에 `llm` 추가 | 6-2에 `parsed_by: llm`이 있음 |
-| E10 | `prescription_items` | `times_per_day`가 NOT NULL인데 6장 확정은 필요시 약이면 `null`을 허용. 컬럼을 NULL 허용으로 바꾸거나, 필요시 약도 하루 최대 횟수를 받기 | 처방전에 '필요시'만 적힌 약을 저장할 수 없음 |
-| E11 | `chat_messages` | `check_result jsonb` 추가(답변 메시지에만, `check_full()` 결과 기록) | 7장 요청(챗봇 검사 결과 저장 칸). 1차는 기록만이라 jsonb 한 칸이면 충분 |
+| E9 | `parsed_by` | ✅ ERD v2대로 1차는 `rule / user`만 씀. 6장도 1차 LLM 복용법 해석을 빼고 같은 값으로 맞춤(채민님 6장 PR). enum 추가 없음(`llm`은 2차) | 6장과 ERD 값이 달랐음 |
+| E10 | `prescription_items` | ✅ `times_per_day`를 NULL 허용으로 바꿈(11/23). 필요시 약만 `NULL` 가능하고, 직접 입력은 지금처럼 하루 최대 횟수를 받음. 공통 테이블 마이그레이션에 반영 | 처방전에 '필요시'만 적힌 약을 저장할 수 없음 |
+| E11 | `chat_messages` | ✅ `check_result jsonb` NULL 허용 추가(11/23 채민·유정 동의). `check_full()` 반환값을 그대로 저장: 걸림 `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}`, 통과 `{"passed": true, "types": [], "rules_version": "verify_rules_v1"}`, 검사를 안 했거나 오류면 `NULL`(오류여도 답변은 막지 않음), 회원 질문 행은 항상 `NULL`. 6-4의 `verify_status`·`flagged` 제안은 채민님이 `check_result`로 바꿈. `verify_status`는 2차 정정 안내(VERI-007) 때 다시 논의. 공통 테이블 마이그레이션에 반영 | 칸 하나만 추가하면 되고, 걸린 종류·규칙 버전이 남아 변경 권유 빈도를 볼 수 있음 |
 
 ### 4-9. 확인할 것
 
@@ -943,7 +962,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | 12 | ✅ 처방 응답의 `schedule_status` | 약 단위로 `ok / needs_check / null(필요시)`. 처방 상세 응답도 같은 값(11/23) | 설아 |
 | 13 | 만 14세 미만 가입 | 개인정보보호법상 만 14세 미만은 법정대리인 동의가 필요합니다. 1차는 추가 정보 입력에서 만 14세 미만이면 `VALIDATION_ERROR`로 막습니다(`POST /users/me/profile`에 반영). 설아님 동의(11/23), 채민·유정님 의견 없으면 확정 | 전원 |
 | 14 | ✅ `VALIDATION_ERROR`의 `fields` 형식 | `{ "필드 경로": "사유 문장" }`. 1-1에 반영했습니다(11/20) | 전원 |
-| 15 | ERD 수정 제안 E1~E11 | 4-8 표. E8은 반영됨 | ERD 담당 |
+| 15 | ERD 수정 제안 E1~E11 | 4-8 표. ✅ E2·E4·E8·E9·E10·E11 결정(11/23). E1·E3·E5·E6·E7은 ERD 담당 확인 | ERD 담당 |
 | 16 | ✅ 가이드 행이 없는 경우 | 가이드 행을 `create_prescription()` 트랜잭션 안에서 만들어 처방이 있으면 행도 있음. 그래도 없으면 7-1이 `failed`로 내려줌(7-1, 7-7) | 유정 |
 | 17 | `start_guide_generation()`에 DB 세션 인자 | 같은 트랜잭션에서 `guides` 행을 만들려면 요청의 세션을 넘겨받아야 합니다. 7-7 시그니처를 `start_guide_generation(db, prescription_id, background_tasks)`로 바꾸는 안 | 유정 |
 | 18 | ✅ 직접 입력에서 공공데이터에 없는 약 | 직접 입력도 `drug_id: null` 저장 허용. 화면에 "검색 결과가 없어요 → 이름 그대로 저장" 버튼을 OCR과 같게 둠(11/23) | 설아 |
@@ -951,7 +970,8 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | 20 | `GET /drugs` 응답(6장 질문) | 자동완성의 `{"items": [...]}`는 1번 '목록' 규칙의 예외로 1번에 적었습니다. 응답 칸 이름은 ERD `drugs` 컬럼(`item_name`, `ingredient_name`, `company`)에 맞추는 안 | 채민 |
 | 21 | ✅ 문서 진행 상태(6장 질문) | ERD `document_status` + 로딩 문구용 `step`에 동의합니다(1-2와 맞음) | 채민 · 설아 |
 | 22 | 커밋 위치와 문서 상태 변경 | `create_prescription()`·`recalculate_schedule()`은 커밋하지 않고 부른 API가 커밋합니다. 문서 `confirmed` 처리는 `create_prescription()` 안에서 하므로 6장 처리 순서 ③은 이 함수가 대신합니다. 함수 인자 이름은 6장대로 `medical_document_id` | 채민 |
-| 23 | ✅ 홈의 '복용 시간 확인 필요' 약 | 홈에서 바로 끼니를 고름(11/20 설아·채민). `GET /intakes`의 `schedule_check_items`에 회차별 `conditions`(`condition_id`, `dose_no`, `reason`, `timing`, `offset_min`) 추가, 회차마다 `PATCH /dose-conditions` 호출. `timing_unknown`의 홈 화면 처리는 설아님 확인 | 설아 · 채민 |
+| 23 | ✅ 홈의 '복용 시간 확인 필요' 약 | 홈에서 바로 끼니를 고름(11/20 설아·채민). `GET /intakes`의 `schedule_check_items`에 회차별 `conditions`(`condition_id`, `dose_no`, `reason`, `timing`, `offset_min`) 추가, 회차마다 `PATCH /dose-conditions` 호출. `timing_unknown`은 안내 카드만 보여 주고 처방 상세의 약 수정 화면으로 보내며, `conditions` 없이 `reason`·`prescription_id`·`prescription_item_id`를 내려줌(11/23 설아) | 설아 · 채민 |
+| 24 | `PATCH /prescription-items/{prescription_item_id}`(약 수정) | `timing_unknown` 약을 고치는 API(4-9 23)인데 3번 목록에 없습니다. 담당과 명세를 정해 주세요. 복용법이 바뀌면 `recalculate_schedule()`을 같이 불러야 합니다(조건 변경과 같은 방식, 커밋은 부른 API) | 설아 · 채민 |
 
 <!-- 민정 END -->
 
@@ -1901,4 +1921,5 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | 2026-11-20 | 민정 | 3-1에 개인정보 가리기 함수 `mask_text()`(채민) 추가(7장 요청) |
 | 2026-11-23 | 민정 | 설아님 리뷰 반영(쿠키): 4-1 리프레시 토큰 쿠키 `SameSite=None` → `Lax`, Vercel rewrites로 퍼스트파티 쿠키·CORS credentials 제거, Plan B(`daol.site` / `api.daol.site`) 추가. 로그아웃 쿠키 삭제 헤더, 3-1 배포 두 행, 7-6 SSE 비고(프록시 테스트) 함께 수정 |
 | 2026-11-23 | 민정 | 설아님 리뷰 반영(홈·처방): `GET /intakes` `schedule_check_items`에 회차별 `conditions` 추가(4-9 23), `POST /prescriptions` 저장 후 이동을 '홈'으로, 건강 프로필 팝업·필요시 토글·이름 그대로 저장 버튼·처방일 없을 때 등록일 표시 반영, 만 14세 미만 `VALIDATION_ERROR` 규칙 추가, 필요시 약 체크 1차 제외 확정, 4-8 E4(`talk_message` 1차 제외) 확정, 4-9 1·4·5·6·10·12·18 확정 |
+| 2026-11-23 | 민정 | 리뷰 반영(설아·채민·유정): `GET /intakes` `schedule_check_items`에 약 단위 `reason`·`prescription_id` 추가, `timing_unknown`은 `conditions` 없이 안내 카드용으로 내려줌(4-9 23), 4-9 24(`PATCH /prescription-items`) 추가, 4-8 E2(2차)·E9(`rule / user`)·E10(`times_per_day` NULL 허용)·E11(`check_result` jsonb, 저장 형식) 확정, `create_prescription()` `parsed_by` 값·공통 검사(`is_oral`, 입력 범위) ERD v2에 맞춤 |
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
