@@ -294,7 +294,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
 | `uploaded` | `structuring` | "약 정보를 정리하고 있어요" | 2초마다 다시 조회 |
 | `ocr_done` | `null` | 인식 결과 확인 화면(B-2) | 회원이 확인·수정 후 확정 |
 | `ocr_failed` | `null` | `message` + [다시 찍기] / [직접 입력하기] | B-1으로 돌아가거나 직접 입력(`POST /prescriptions`) |
-| `confirmed` | `null` | 처방 상세로 이동 | `prescription_id` 사용 |
+| `confirmed` | `null` | 홈으로 이동 | `prescription_id` 사용 |
 | `expired` | `null` | "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요" | B-1 |
 
 - `ocr_done`은 OCR과 약 정보 정리가 **모두** 끝난 상태입니다(이름은 ERD를 따름).
@@ -697,7 +697,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
     5. `create_prescription()`이 돌려준 `prescription_id`, `conditions_to_confirm`을 그대로 응답합니다.
   - 4 삭제에 실패해도 응답은 성공으로 돌려주고, 정리 작업이 다시 지웁니다. 2가 실패하면 트랜잭션이 모두 되돌려져 상태는 `ocr_done`으로 남고 원본도 지우지 않으므로 회원이 다시 [저장하기]를 누를 수 있습니다.
   - 같은 요청이 두 번 들어와도 처방이 두 번 생기지 않도록 문서 행을 잠그고 상태를 확인합니다.
-  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 처방 상세로 이동합니다. 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 아침·점심·저녁으로 채워지므로 이 목록에 들어가지 않습니다.
+  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 홈으로 이동합니다. 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 아침·점심·저녁으로 채워지므로 이 목록에 들어가지 않습니다.
   - 복용 기록은 확정 시각 이후 회차부터 만듭니다(4장 합의). 한 약에서 회차 하나라도 확인이 필요하면 그 약은 복용 기록을 만들지 않고, 모두 고른 뒤 `recalculate_schedule()`이 만듭니다.
   - `drug_id: null`인 약은 가이드에서 "이 약은 안내 정보가 없어요"로 나갑니다(VERI-003 1차 범위).
   - ERD에는 1회 용량 중 `dose_text`만 저장합니다. Body의 `min`·`max`·`parsed`는 저장하지 않고, 조회할 때 `parse_dose_text()`(6-4)로 다시 만듭니다. 그래서 같은 `text`면 저장 전후 값이 같습니다.
