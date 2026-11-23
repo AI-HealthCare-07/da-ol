@@ -203,7 +203,7 @@ Table health_profiles [headercolor: #3B82F6] {
   drinks_per_week int
   exercise_per_week int
   updated_at timestamptz [not null, default: `now()`]
-  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 가이드 생성 전 입력 유도 팝업'
+  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 처방 저장 전 입력 유도 팝업 (가이드가 저장 즉시 만들어지므로). 나중에 입력해도 이미 만든 가이드는 그대로'
 }
 
 Table user_conditions [headercolor: #3B82F6] {
@@ -366,7 +366,7 @@ Table intake_logs [headercolor: #3B82F6] {
   log_date date [not null, note: '일과 기준 하루 (기상 ~ 다음 기상 전), KST']
   scheduled_time time [note: '그날 기준 복용 시각 스냅샷. 필요시 약은 NULL']
   dose_text varchar(50) [not null, note: '그날 용량 스냅샷']
-  is_as_needed boolean [not null, default: false, note: "'필요할 때 복용' 영역에서 체크"]
+  is_as_needed boolean [not null, default: false, note: "[2차] 필요시 약 체크 기록용. 1차는 '필요할 때 복용' 목록만 보여주고 기록하지 않음. 필요시 기록은 scheduled_time = NULL이라 아래 unique에 걸리지 않아 하루 여러 번 저장 가능"]
   status intake_status [not null, default: 'pending']
   taken_at timestamptz
   created_at timestamptz [not null, default: `now()`]
