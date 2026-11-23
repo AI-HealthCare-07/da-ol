@@ -1026,11 +1026,11 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | ✅ 가이드 `dose_times`는 조회 때 시간표 값으로 채웁니다(7-1 반영, 11/20). 그래서 복용 조건을 바꿔도 가이드와 어긋나지 않고, `verify_guide()`도 `dose_times`를 검사하지 않습니다 | 유정 |
 | 7-7 질문에 대한 답: 1회 용량 `min`·`max`·`parsed`는 공용 함수 `parse_dose_text()`(6-4)로 만듭니다. 확정 API·`PATCH /scans`·`get_confirmed_prescription()`이 같은 함수를 써서 결과가 어긋나지 않게 합니다 | 설아 · 유정 |
 | 5장 `get_confirmed_prescription()` 반환 형식의 `prescription_drug_id`를 6·7장과 같은 `prescription_item_id`로 맞춥니다(설아님이 4장 리뷰 답변 (10)에서 바꾸기로 함) | 설아 |
-| 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 `create_prescription()`이 저장할 때 아침·점심·저녁으로 채웁니다. 그런데 확인 화면(B-2)에서는 끼니가 비어 '확인 필요'로 보입니다. 끼니 기본값 채우기를 `calculate_schedule()`처럼 순수 함수로 빼 주시면, `GET /scans`도 같은 함수로 미리 채워 보여 주겠습니다 → 민정님 확인 | 민정 · 재경 |
+| ✅ 끼니 기본값은 4장 순수 함수 `fill_default_meals(doses, times_per_day)`(민정, DB 안 씀)로 채웁니다. `create_prescription()`이 저장 전에 부르고, `GET /scans/{scan_id}`도 같은 함수로 미리 채워 보여 줍니다(민정님 답변) | 민정 · 재경 |
 | ✅ 홈의 끼니 고르기도 `PATCH /dose-conditions/{condition_id}`를 씁니다. 끼니만 보내도 되도록 부분 수정으로 바꿨습니다. 홈의 `schedule_check_items`에 `conditions: [{condition_id, dose_no, reason}]`을 넣기로 했습니다(4장 설아님 리뷰). `reason`은 확정 응답·`ConditionToConfirm`과 같은 값입니다 | 설아 · 민정 |
 | ✅ ERD v2(`daol_erd_v2.dbml`)에 맞췄습니다: `parsed_by`는 `rule` / `user`(LLM 복용법 해석은 ERD대로 2차), 문서 종류 `pill_envelope`, 확정 Body `drug_name`은 처방전에 적힌 이름(`drug_name_raw`), 원문 줄 `raw_text`(`source_text`), `is_oral`('먹는 약 아님'), `times_per_day` 1~4·`total_days` 1~365, 프롬프트 버전 `parse_document_v1`(`prompt_kind`) | 민정 · 유정 |
 | 1차는 사전에 없는 복용법 문장을 LLM으로 해석하지 않고 바로 '복용 조건 확인 필요'로 둡니다(ERD `parsed_by.llm` [2차]). AI 기획 문서의 1차 복용법 해석(LLM) 범위도 2차로 옮겨야 합니다 → 유정님과 AI 문서 반영 | 유정 · 민정 |
-| ERD 칸 이름과 다른 API 이름: `document_type`(ERD `doc_type`), `expires_at`(ERD `image_delete_due_at`). 1번 공통 규칙(필드 이름 = ERD 컬럼)대로 바꿀지 정해 주세요. `prescribed_date`는 `prescriptions.prescribed_date`로 저장되므로 그대로 둡니다 | 민정 |
+| ✅ ERD 칸 이름에 맞춰 `document_type` → `doc_type`, `expires_at` → `image_delete_due_at`으로 바꿨습니다(1번 공통 규칙, 민정님 답변). `prescribed_date`는 `prescriptions.prescribed_date`로 저장되므로 그대로 둡니다 | 민정 |
 | ERD `document_pages.file_hash`의 "이미 올린 사진이에요"(같은 파일 다시 올리기): 1차에 넣는다면 `POST /scans`에서 막지 않고 응답에 `duplicate_pages: [1]`로 알려 주는 안을 제안합니다 | 설아 · 민정 |
 | ERD `document_pages.page_no`의 "확인 화면에서 바꿀 수 있음"(페이지 순서 바꾸기)과 `doc_type`의 "'처방전이 아닌 것 같아요' 경고"는 6장에 없습니다. 1차 화면에 필요한지 정해 주세요 | 설아 |
 
@@ -1043,7 +1043,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | `uploaded` | `structuring` | "약 정보를 정리하고 있어요" | 2초마다 다시 조회 |
 | `ocr_done` | `null` | 인식 결과 확인 화면(B-2) | 회원이 확인·수정 후 확정 |
 | `ocr_failed` | `null` | `message` + [다시 찍기] / [직접 입력하기] | B-1으로 돌아가거나 직접 입력(`POST /prescriptions`) |
-| `confirmed` | `null` | 홈으로 이동 | `prescription_id` 사용 |
+| `confirmed` | `null` | 처방 상세로 이동 | `prescription_id` 사용 |
 | `expired` | `null` | "올린 지 3시간이 지나 파일이 삭제됐어요. 다시 올려 주세요" | B-1 |
 
 - `ocr_done`은 OCR과 약 정보 정리가 **모두** 끝난 상태입니다(이름은 ERD를 따름).
@@ -1127,11 +1127,11 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   | 칸 | 필수 | 설명 |
   | --- | --- | --- |
   | `files` | O | 파일 여러 개. jpg·png·pdf, 1개 10MB·합계 30MB. 올린 순서대로 페이지 번호를 매깁니다 |
-  | `document_type` | O | `prescription`(처방전) / `pill_envelope`(약봉투) |
+  | `doc_type` | O | `prescription`(처방전) / `pill_envelope`(약봉투) |
 
   ```
   files: 처방전_앞.jpg, 처방전_뒤.jpg
-  document_type: prescription
+  doc_type: prescription
   ```
 - Response Body (202):
 
@@ -1140,18 +1140,18 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     "scan_id": 42,
     "status": "uploaded",
     "step": "reading",
-    "document_type": "prescription",
+    "doc_type": "prescription",
     "page_count": 2,
-    "expires_at": "2026-11-20T21:30:00+09:00"
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00"
   }
   ```
-- 에러: `VALIDATION_ERROR`(422) 파일 없음·`document_type` 누락이나 잘못된 값 → 해당 칸 표시 / `FILE_TOO_LARGE`(413)·`UNSUPPORTED_FILE_TYPE`(415)·`ENCRYPTED_PDF`(422)·`INVALID_FILE`(422)·`TOO_MANY_PAGES`(422) → 올리는 단계에서 `message` 표시 후 다시 고르기 / `RATE_LIMITED`(429) OCR 호출 제한 초과 → "오늘은 더 이상 올릴 수 없어요. 직접 입력해 주세요" / `EXTERNAL_API_ERROR`는 여기서 돌려주지 않습니다(읽기 실패는 상태 조회의 `ocr_failed`로 알림)
+- 에러: `VALIDATION_ERROR`(422) 파일 없음·`doc_type` 누락이나 잘못된 값 → 해당 칸 표시 / `FILE_TOO_LARGE`(413)·`UNSUPPORTED_FILE_TYPE`(415)·`ENCRYPTED_PDF`(422)·`INVALID_FILE`(422)·`TOO_MANY_PAGES`(422) → 올리는 단계에서 `message` 표시 후 다시 고르기 / `RATE_LIMITED`(429) OCR 호출 제한 초과 → "오늘은 더 이상 올릴 수 없어요. 직접 입력해 주세요" / `EXTERNAL_API_ERROR`는 여기서 돌려주지 않습니다(읽기 실패는 상태 조회의 `ocr_failed`로 알림)
 - 비고:
   - 파일 크기·형식·암호·손상 검사는 요청을 받을 때 끝내고, 통과한 경우에만 `202`를 돌려줍니다.
   - PDF는 페이지마다 이미지로 바꿔 `document_pages`에 저장합니다. PDF 페이지는 그 파일 자리에 펼쳐서 번호를 매깁니다(예: 사진 1장 + 3쪽 PDF → 1, 2, 3, 4).
   - 이미지·PDF 모두 페이지별로 CLOVA OCR을 부릅니다(1차는 전자 PDF도 OCR). 페이지마다 10초가 넘거나 오류가 나면 최대 2회 다시 부릅니다.
   - 약 정보 정리(LLM)에 넘기기 전에 주민등록번호·환자번호·이름·면허번호·연락처를 가립니다. OCR 글자는 로그·AI 호출 기록에 남기지 않습니다(NFR-004).
-  - `expires_at`은 업로드 시각 + 3시간입니다. 그때까지 확정하지 않으면 정리 작업이 원본 파일·페이지 이미지·인식 결과를 지우고 `expired`로 바꿉니다. 수정해도 연장되지 않습니다.
+  - `image_delete_due_at`은 업로드 시각 + 3시간입니다. 그때까지 확정하지 않으면 정리 작업이 원본 파일·페이지 이미지·인식 결과를 지우고 `expired`로 바꿉니다. 수정해도 연장되지 않습니다.
 
 ### [GET] /api/v1/scans/{scan_id}
 - 설명: 진행 상태를 돌려줍니다. 인식이 끝났으면(`ocr_done`) 확인 화면(B-2)에 쓸 인식 결과를 함께 돌려줍니다.
@@ -1170,8 +1170,8 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     "scan_id": 42,
     "status": "uploaded",
     "step": "structuring",
-    "document_type": "prescription",
-    "expires_at": "2026-11-20T21:30:00+09:00"
+    "doc_type": "prescription",
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00"
   }
   ```
 
@@ -1182,8 +1182,8 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     "scan_id": 42,
     "status": "ocr_done",
     "step": null,
-    "document_type": "prescription",
-    "expires_at": "2026-11-20T21:30:00+09:00",
+    "doc_type": "prescription",
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00",
     "pages": [{ "page_no": 1 }, { "page_no": 2 }],
     "masked": true,
     "prompt_version": "parse_document_v1",
@@ -1254,7 +1254,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     "scan_id": 42,
     "status": "ocr_failed",
     "step": null,
-    "document_type": "prescription",
+    "doc_type": "prescription",
     "fail_reason": "no_text",
     "message": "글자를 읽지 못했어요. 밝은 곳에서 문서 전체가 나오게 다시 찍어 주세요"
   }
@@ -1271,6 +1271,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 → "처방전을 찾을 수 없어요" 후 B-1로 이동
 - 비고:
   - 상태별 화면과 최대 대기 시간은 6-1, 칸 모양과 노란색 표시 규칙은 6-2를 따릅니다.
+  - 인식 결과를 돌려주기 전에 4장 `fill_default_meals(doses, times_per_day)`(민정)로 끼니를 미리 채웁니다. 1일 3회 + 식전·식후 3개 → `dose_no` 순으로 아침·점심·저녁, 1일 4회 + 식전·식후 3개 + 취침 전 → 같은 방식, 그 밖에는 그대로 둡니다(1일 1·2회는 `meal_unknown` 유지). `create_prescription()`과 같은 함수라 확인 화면과 저장 결과가 어긋나지 않습니다.
   - `drugs[]`는 원문 줄 순서(`line_no`)대로 내려주고, 같은 약이 여러 줄이어도 합치지 않습니다. `page_no`는 그 줄이 나온 페이지로, 확인 화면에서 원본 페이지를 나란히 보여 줄 때 씁니다.
   - `PATCH`로 고친 값이 있으면 고친 값이 반영된 결과를 내려주고 `edited: true`가 됩니다.
   - 원본 이미지는 이 응답에 넣지 않고 `GET /scans/{scan_id}/pages/{page_no}/image`로 받습니다.
@@ -1305,7 +1306,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ② 문서 종류 다시 고르기 → `202`
 
   ```json
-  { "document_type": "pill_envelope" }
+  { "doc_type": "pill_envelope" }
   ```
 - Response Body (200 / 202):
 
@@ -1314,7 +1315,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ② 202:
 
   ```json
-  { "scan_id": 42, "status": "uploaded", "step": "structuring", "document_type": "pill_envelope" }
+  { "scan_id": 42, "status": "uploaded", "step": "structuring", "doc_type": "pill_envelope" }
   ```
 - 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing` → `fields`의 칸 표시 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
@@ -1446,7 +1447,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     5. `create_prescription()`이 돌려준 `prescription_id`, `conditions_to_confirm`을 그대로 응답합니다.
   - 4 삭제에 실패해도 응답은 성공으로 돌려주고, 정리 작업이 다시 지웁니다. 2가 실패하면 트랜잭션이 모두 되돌려져 상태는 `ocr_done`으로 남고 원본도 지우지 않으므로 회원이 다시 [저장하기]를 누를 수 있습니다.
   - 같은 요청이 두 번 들어와도 처방이 두 번 생기지 않도록 문서 행을 잠그고 상태를 확인합니다.
-  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 홈으로 이동합니다. 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 아침·점심·저녁으로 채워지므로 이 목록에 들어가지 않습니다.
+  - `conditions_to_confirm`이 비어 있지 않으면 B-2에서 이어서 복용 조건을 고르게 하고(`PATCH /dose-conditions/{condition_id}`), 비어 있으면 처방 상세로 이동합니다. 1일 3회인데 끼니가 안 적힌 경우는 4장 시간표 규칙대로 아침·점심·저녁으로 채워지므로 이 목록에 들어가지 않습니다.
   - 복용 기록은 확정 시각 이후 회차부터 만듭니다(4장 합의). 한 약에서 회차 하나라도 확인이 필요하면 그 약은 복용 기록을 만들지 않고, 모두 고른 뒤 `recalculate_schedule()`이 만듭니다.
   - `drug_id: null`인 약은 가이드에서 "이 약은 안내 정보가 없어요"로 나갑니다(VERI-003 1차 범위).
   - ERD에는 1회 용량 중 `dose_text`만 저장합니다. Body의 `min`·`max`·`parsed`는 저장하지 않고, 조회할 때 `parse_dose_text()`(6-4)로 다시 만듭니다. 그래서 같은 `text`면 저장 전후 값이 같습니다.
@@ -1626,7 +1627,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | --- | --- | --- | --- |
 | `parse_dose_text(text)` | 6장 `PATCH /scans`·확정 API, 5장 `get_confirmed_prescription()`(설아) | `"1/2정"` → `{"text": "1/2정", "min": 0.5, "max": 0.5, "unit": "정", "parsed": true}` | 표현 사전(`dosage_dict_v1`)만 씁니다. ERD에는 `dose_text`만 저장되므로 조회할 때 이 함수로 다시 만듭니다(7-7 비고). 같은 글자면 항상 같은 결과입니다. 읽을 수 없으면 `min`·`max`·`unit`이 `null`, `parsed: false` |
 | `mask_text(text)` | 6장 OCR 글자(LLM에 넘기기 전), 7-6 챗봇 질문(저장 전) | 글자 → 가린 글자(`[주민번호]`, `[연락처]`, `[이메일]`, `[환자번호]`, `[면허번호]`) | 규칙(정규식)으로 가립니다. 이름은 처방전의 '성명' 칸처럼 위치로 알 수 있을 때만 `[이름]`으로 가리고, 챗봇 질문 속 이름은 1차에 가리지 않습니다 |
-| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | 저장은 `chat_messages.check_result`(jsonb)에 반환값을 그대로 넣습니다(E11, 11/23 확정). 통과는 `{"passed": true, "types": [], "rules_version": "verify_rules_v1"}`, 검사를 하지 않았거나 오류가 나면 `null`, 회원 질문 행은 항상 `null`입니다. `verify_status`는 정정 안내(VERI-007)를 넣는 2차에 다시 정합니다. |
+| `check_full(answer, *, question, current_drugs, user_conditions=None)` | 7-6 ⑥ 챗봇 답변이 끝난 뒤 | 답변 전체 + 가린 질문 + 복용 중인 약 이름 → `{"passed": false, "types": ["forbidden"], "rules_version": "verify_rules_v1"}` | VERI-004 ⓐⓑⓒ 검사. 질문에 나온 약은 처방에 없어도 실패로 보지 않습니다. 결과는 **기록만** 하고 화면에는 보내지 않습니다(정정 안내는 2차 VERI-007). 저장은 `chat_messages.check_result`(jsonb)에 반환값을 그대로 넣습니다(E11, 11/23 확정). 통과는 `{"passed": true, "types": [], "rules_version": "verify_rules_v1"}`, 검사를 하지 않았거나 오류가 나면 `null`, 회원 질문 행은 항상 `null`입니다. `verify_status`는 정정 안내(VERI-007)를 넣는 2차에 다시 정합니다. 답변 문장은 결과에 다시 담지 않습니다. 오류가 나도 호출하는 쪽은 답변을 막지 않습니다 |
 
 <!-- 채민 END -->
 
