@@ -12,14 +12,14 @@ import getpass
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import time
 from datetime import date
 from pathlib import Path
 
-# 공공데이터포털 '의약품 제품 허가정보 > 상세정보 기능의 요청 주소와 같은지 확인하세요.
+# 공공데이터포털 '의약품 제품 허가정보' > 상세정보 기능의 요청 주소와 같은지 확인하세요.
 BASE_URL = "https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService08/getDrugPrdtPrmsnDtlInq08"
 NUM_OF_ROWS = 100
 SAVE_DIR = Path.home() / "Documents" / "final_project" / "data" / "raw" / f"permit_detail_{date.today():%Y%m%d}"
@@ -37,6 +37,7 @@ def fetch_page(key: str, page_no: int) -> dict:
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
     with urllib.request.urlopen(url, timeout=60) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
 
 def get_items(body: dict) -> list:
     items = body.get("items") or []

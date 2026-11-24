@@ -12,10 +12,10 @@ import getpass
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import time
 from datetime import date
 from pathlib import Path
 
@@ -37,6 +37,7 @@ def fetch_page(key: str, page_no: int) -> dict:
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
     with urllib.request.urlopen(url, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
 
 def get_items(body: dict) -> list:
     items = body.get("items") or []
