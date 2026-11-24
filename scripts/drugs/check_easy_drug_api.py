@@ -35,6 +35,9 @@ def main() -> int:
         return 1
 
     params = {"serviceKey": key, "pageNo": 1, "numOfRows": NUM_OF_ROWS, "type": "json"}
+    search = input("찾을 제품명(없으면 Enter): ").strip()
+    if search:
+        params["itemName"] = search
     url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
 
     try:
