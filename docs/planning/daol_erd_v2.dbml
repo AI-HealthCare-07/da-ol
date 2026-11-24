@@ -16,6 +16,7 @@
 //         - partner_links 신규 (NOTI-006)
 //         - notifications 를 발송 이력 겸 알림 센터로 확장 (카카오톡·웹 푸시, 본인·파트너)
 //         - users.signup_type 추가: 파트너는 간단 절차로 가입 (3차)
+//       + 11/24 결정: 파트너 알림 '약 이름 함께 보내기' 옵션 제외 → user_settings.partner_include_drug_names 삭제
 // dbdiagram.io 에 그대로 붙여넣어 사용 / DB: PostgreSQL 가정
 //
 // 헤더 색상 = 구현 단계 (결정 사항 5-1)
@@ -319,7 +320,6 @@ Table user_settings [headercolor: #F97316] {
   lead_minutes int [not null, default: 0, note: '[3차] 0 = 정각, 10 = 10분 전 (NOTI-001)']
   reminder_interval_minutes int [note: '[3차] 웹 푸시 미복용 재알림 간격 (팀 합의)']
   remind_prescription_end boolean [not null, default: true, note: '[3차] NOTI-003']
-  partner_include_drug_names boolean [not null, default: false, note: "[3차] 파트너 알림에 약 이름 함께 보내기 (NOTI-006)"]
   updated_at timestamptz [not null, default: `now()`]
   Note: "회원당 1행인 설정 모음. 마이페이지 '화면 설정' 탭 + '알림 설정' 탭 (기존 notification_settings 통합, 11/20). 약별 ON/OFF는 prescription_items.notify_enabled"
 }
