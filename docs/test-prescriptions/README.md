@@ -344,8 +344,9 @@
     ]
   }
   ```
-- **기대 동작:** `before_meal`(식전 30분) 및 `bedtime`(취침 전, `meal: null`) 조건 정상 매핑, `conditions_to_confirm: []`
-
+-- **기대 동작:**
+  - `GET /scans/{scan_id}` 단계: `모사프리드정 5mg`는 DB에 제조사명이 붙어 등록되어 있으므로 `match.status: "candidates"`로 반환
+  - 확정 후: `before_meal`(식전 30분) 및 `bedtime`(취침 전, `meal: null`) 조건 정상 매핑, `conditions_to_confirm: []`
 ---
 
 ## Case 06 [정상 5] 필요시(PRN) 복용 약 포함 처방
@@ -611,8 +612,9 @@
 ## Case 10 [함정 4 — 약 하나 빠짐] 마지막 줄 약 누락 주의 처방
 - **예시 이미지:** `./case10.png` (`document_type: "prescription"`)
 - **함정 포인트:** 총 3개 약물 중 마지막 3번째 줄(`가스모틴정 5mg`)이 흐리게 인쇄되어 OCR·구조화 과정에서 누락되기 쉬운 경우
-- **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
+- - **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
   - 추출 줄 수 `3` (`drugs.length == 3` — 3줄 모두 추출되어야 함, OCR 누락 여부를 보는 케이스)
+  - `트라젠타정 5mg`(DB 등록명: `트라젠타정(리나글립틴)`), `아토르바스타틴정 10mg`(제조사명 포함 등록)는 `match.status: "candidates"`로 반환
 - **확정 정답값 (`POST /scans/{scan_id}/confirm` Request Body & `raw_text` 기준):**
   ```json
   {
