@@ -1,0 +1,374 @@
+{
+  "post_scans_202": {
+    "scan_id": 42,
+    "status": "uploaded",
+    "step": "reading",
+    "doc_type": "prescription",
+    "page_count": 2,
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00"
+  },
+  "get_scan_uploaded": {
+    "scan_id": 42,
+    "status": "uploaded",
+    "step": "structuring",
+    "doc_type": "prescription",
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00"
+  },
+  "get_scan_ocr_done": {
+    "scan_id": 42,
+    "status": "ocr_done",
+    "step": null,
+    "doc_type": "prescription",
+    "image_delete_due_at": "2026-11-20T21:30:00+09:00",
+    "pages": [
+      {
+        "page_no": 1
+      },
+      {
+        "page_no": 2
+      }
+    ],
+    "masked": true,
+    "prompt_version": "parse_document_v1",
+    "edited": false,
+    "hospital_name": {
+      "value": "가상내과의원",
+      "confidence": 0.97,
+      "needs_check": false
+    },
+    "prescribed_date": {
+      "value": "2026-11-20",
+      "confidence": 0.93,
+      "needs_check": false
+    },
+    "drugs": [
+      {
+        "line_no": 1,
+        "page_no": 1,
+        "raw_text": "가상정5mg 1 3 5 식후30분",
+        "drug_name": {
+          "value": "가상정5mg",
+          "confidence": 0.91,
+          "needs_check": false
+        },
+        "match": {
+          "status": "exact",
+          "drug_id": 1203,
+          "candidates": []
+        },
+        "is_oral": true,
+        "dose_per_time": {
+          "text": "1정",
+          "min": 1,
+          "max": 1,
+          "unit": "정",
+          "parsed": true,
+          "confidence": 0.95,
+          "needs_check": false
+        },
+        "times_per_day": {
+          "value": 3,
+          "confidence": 0.72,
+          "needs_check": true
+        },
+        "total_days": {
+          "value": 5,
+          "confidence": 0.94,
+          "needs_check": false
+        },
+        "instruction_text": "식후30분",
+        "dosage": {
+          "parsed_by": "rule",
+          "needs_confirm": false,
+          "as_needed": false,
+          "doses": [
+            {
+              "dose_no": 1,
+              "meal": "breakfast",
+              "timing": "after_meal",
+              "offset_min": 30
+            },
+            {
+              "dose_no": 2,
+              "meal": "lunch",
+              "timing": "after_meal",
+              "offset_min": 30
+            },
+            {
+              "dose_no": 3,
+              "meal": "dinner",
+              "timing": "after_meal",
+              "offset_min": 30
+            }
+          ],
+          "cycle": {
+            "type": "daily",
+            "start_date": "2026-11-20"
+          }
+        }
+      },
+      {
+        "line_no": 2,
+        "page_no": 1,
+        "raw_text": "가상캡슐 1 2 5",
+        "drug_name": {
+          "value": "가상캡슐",
+          "confidence": 0.84,
+          "needs_check": false
+        },
+        "match": {
+          "status": "candidates",
+          "drug_id": null,
+          "candidates": [
+            {
+              "drug_id": 2210,
+              "item_name": "가상캡슐 250mg",
+              "company": "가상제약",
+              "similarity": 0.81
+            },
+            {
+              "drug_id": 2211,
+              "item_name": "가상캡슐 500mg",
+              "company": "가상제약",
+              "similarity": 0.79
+            }
+          ]
+        },
+        "is_oral": null,
+        "dose_per_time": {
+          "text": "1캡슐",
+          "min": 1,
+          "max": 1,
+          "unit": "캡슐",
+          "parsed": true,
+          "confidence": 0.9,
+          "needs_check": false
+        },
+        "times_per_day": {
+          "value": 2,
+          "confidence": 0.88,
+          "needs_check": false
+        },
+        "total_days": {
+          "value": 5,
+          "confidence": 0.9,
+          "needs_check": false
+        },
+        "instruction_text": null,
+        "dosage": {
+          "parsed_by": "rule",
+          "needs_confirm": true,
+          "as_needed": false,
+          "doses": [
+            {
+              "dose_no": 1,
+              "meal": null,
+              "timing": null,
+              "offset_min": null
+            },
+            {
+              "dose_no": 2,
+              "meal": null,
+              "timing": null,
+              "offset_min": null
+            }
+          ],
+          "cycle": {
+            "type": "daily",
+            "start_date": "2026-11-20"
+          }
+        }
+      }
+    ]
+  },
+  "get_scan_ocr_failed": {
+    "scan_id": 42,
+    "status": "ocr_failed",
+    "step": null,
+    "doc_type": "prescription",
+    "fail_reason": "no_text",
+    "message": "글자를 읽지 못했어요. 밝은 곳에서 문서 전체가 나오게 다시 찍어 주세요"
+  },
+  "get_scan_confirmed": {
+    "scan_id": 42,
+    "status": "confirmed",
+    "step": null,
+    "prescription_id": 88
+  },
+  "get_scan_expired": {
+    "scan_id": 42,
+    "status": "expired",
+    "step": null
+  },
+  "patch_scan_edit_request": {
+    "prescribed_date": "2026-11-19",
+    "drugs": [
+      {
+        "line_no": 1,
+        "times_per_day": 3
+      },
+      {
+        "line_no": 2,
+        "drug_id": 2210
+      },
+      {
+        "line_no": 2,
+        "dosage": {
+          "as_needed": false,
+          "doses": [
+            {
+              "dose_no": 1,
+              "meal": "breakfast",
+              "timing": "after_meal",
+              "offset_min": 30
+            },
+            {
+              "dose_no": 2,
+              "meal": "dinner",
+              "timing": "after_meal",
+              "offset_min": 30
+            }
+          ]
+        }
+      },
+      {
+        "line_no": 3,
+        "deleted": true
+      },
+      {
+        "drug_name": "가상시럽",
+        "drug_id": null,
+        "dose_per_time": {
+          "text": "5mL"
+        },
+        "times_per_day": 3,
+        "total_days": 3
+      }
+    ]
+  },
+  "patch_scan_doc_type_request": {
+    "doc_type": "pill_envelope"
+  },
+  "patch_scan_doc_type_202": {
+    "scan_id": 42,
+    "status": "uploaded",
+    "step": "structuring",
+    "doc_type": "pill_envelope"
+  },
+  "confirm_request": {
+    "hospital_name": "가상내과의원",
+    "prescribed_date": "2026-11-20",
+    "drugs": [
+      {
+        "line_no": 1,
+        "drug_id": 1203,
+        "drug_name": "가상정5mg",
+        "raw_text": "가상정5mg 1 3 5 식후30분",
+        "dose_per_time": {
+          "text": "1정",
+          "min": 1,
+          "max": 1,
+          "unit": "정",
+          "parsed": true
+        },
+        "times_per_day": 3,
+        "total_days": 5,
+        "instruction_text": "식후30분",
+        "dosage": {
+          "parsed_by": "rule",
+          "as_needed": false,
+          "doses": [
+            {
+              "dose_no": 1,
+              "meal": "breakfast",
+              "timing": "after_meal",
+              "offset_min": 30
+            },
+            {
+              "dose_no": 2,
+              "meal": "lunch",
+              "timing": "after_meal",
+              "offset_min": 30
+            },
+            {
+              "dose_no": 3,
+              "meal": "dinner",
+              "timing": "after_meal",
+              "offset_min": 30
+            }
+          ],
+          "cycle": {
+            "type": "daily",
+            "start_date": "2026-11-20"
+          }
+        }
+      },
+      {
+        "line_no": 2,
+        "drug_id": 2210,
+        "drug_name": "가상캡슐",
+        "raw_text": "가상캡슐 1 2 5",
+        "dose_per_time": {
+          "text": "1캡슐",
+          "min": 1,
+          "max": 1,
+          "unit": "캡슐",
+          "parsed": true
+        },
+        "times_per_day": 2,
+        "total_days": 5,
+        "instruction_text": null,
+        "dosage": {
+          "parsed_by": "rule",
+          "as_needed": false,
+          "doses": [
+            {
+              "dose_no": 1,
+              "meal": null,
+              "timing": null,
+              "offset_min": null
+            },
+            {
+              "dose_no": 2,
+              "meal": null,
+              "timing": null,
+              "offset_min": null
+            }
+          ],
+          "cycle": {
+            "type": "daily",
+            "start_date": "2026-11-20"
+          }
+        }
+      }
+    ]
+  },
+  "confirm_201": {
+    "scan_id": 42,
+    "status": "confirmed",
+    "prescription_id": 88,
+    "conditions_to_confirm": [
+      {
+        "condition_id": 5014,
+        "prescription_item_id": 502,
+        "drug_name": "가상캡슐 250mg",
+        "dose_no": 1,
+        "reason": "meal_unknown"
+      },
+      {
+        "condition_id": 5015,
+        "prescription_item_id": 502,
+        "drug_name": "가상캡슐 250mg",
+        "dose_no": 2,
+        "reason": "meal_unknown"
+      }
+    ]
+  },
+  "validation_error": {
+    "code": "VALIDATION_ERROR",
+    "message": "빈칸을 채워 주세요",
+    "fields": {
+      "drugs[1].total_days": "총 일수를 입력해 주세요"
+    }
+  }
+}
