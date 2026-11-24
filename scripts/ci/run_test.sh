@@ -12,7 +12,7 @@ source .env
 echo "${COLOR_BLUE}Find Tests${COLOR_NC}"
 
 HAS_TESTS=false
-MYSQL_CONTAINER_NAME=mysql
+DB_CONTAINER_NAME=db
 
 if [ -d "./app/tests" ] && find ./app/tests -name 'test_*.py' -print -quit | read ; then
   HAS_TESTS=true
@@ -21,14 +21,9 @@ fi
 echo "Has tests: $HAS_TESTS"
 
 if [ "$HAS_TESTS" = true ]; then
-  if docker ps --format '{{.Names}}' | grep -q "^${MYSQL_CONTAINER_NAME}$"; then
-    echo "${COLOR_BLUE}→ MySQL container found. Granting privileges...${COLOR_NC}"
-
-    docker exec -i ${MYSQL_CONTAINER_NAME} \
-    mysql -u root -p${DB_ROOT_PASSWORD}<<EOF
-      GRANT ALL PRIVILEGES ON *.* TO '${DB_USER}'@'%' WITH GRANT OPTION;
-      FLUSH PRIVILEGES;
-EOF
+  if docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER_NAME}$"; then
+    # POSTGRES_USER(DB_USER)는 슈퍼유저라 테스트용 DB 생성 권한을 따로 줄 필요가 없습니다.
+    echo "${COLOR_BLUE}→ PostgreSQL container found.${COLOR_NC}"
 
     echo "${COLOR_BLUE}Run Pytest with Coverage${COLOR_NC}"
 
@@ -45,7 +40,7 @@ EOF
       exit 1
     fi
   else
-    echo "${COLOR_RED} MySQL Docker Container Not Found. Run docker compose up mysql.${COLOR_NC}"
+    echo "${COLOR_RED} PostgreSQL Docker Container Not Found. Run docker compose up db.${COLOR_NC}"
   fi
 else
   echo "${COLOR_BLUE}No tests found. Skipping tests.${COLOR_NC}"
