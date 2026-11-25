@@ -1442,7 +1442,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | `no_text` | 글자를 거의 읽지 못함(흐림·빛 반사·잘림) | "글자를 읽지 못했어요. 밝은 곳에서 문서 전체가 나오게 다시 찍어 주세요" |
 | `no_drug_found` | 글자는 읽었지만 약 줄을 찾지 못함 | "약 정보를 찾지 못했어요. 문서 종류를 다시 고르거나 직접 입력해 주세요" |
 | `structure_error` | 약 정보 정리가 1회 재요청 후에도 실패 | "약 정보를 정리하지 못했어요. 직접 입력해 주세요" |
-| 회원이 고친 칸 | `null` | 항상 `false`. 단, 고친 용량을 읽을 수 없으면(`parsed: false`) `true` |
+| `timeout` | 90초 안에 끝나지 않음 | "인식에 실패했어요. 잠시 후 다시 올리거나 직접 입력해 주세요" |
 
 ### 6-2. 인식 결과에서 쓰는 모양
 
@@ -1452,9 +1452,9 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | --- | --- | --- |
 | OCR 글자에서 바로 온 칸(약품명, 숫자) | 그 칸을 이루는 OCR 단어 신뢰도 중 가장 낮은 값 | 0.8 미만(출발점, 테스트 후 조정) |
 | 정리하면서 원문과 다른 형태로 바뀐 칸 | `null` | 항상 |
-| 회원이 고친 칸 | `null` | 항상 `false` |
+| 회원이 고친 칸 | `null` | 항상 `false`. 단, 고친 용량을 읽을 수 없으면(`parsed: false`) `true` |
 
-**용량**(`dose_per_time`): AI 문서 4-9 모양 `{text, min, max, unit, parsed}`에 `confidence`, `needs_check`를 더합니다. `parsed: false`(적당량 등)면 `needs_check: true`이고 "용량을 확인해 주세요"를 띄웁니다. 용량은 필수 칸이 아니라 그대로 확정할 수 있습니다. 용량은 필수 칸이 아니라 그대로 확정할 수 있습니다. 회원이 고친 용량을 읽을 수 없을 때는 "숫자와 단위로 적어 주시면 더 정확해요 (예: 1정, 0.5정, 5mL)"를 띄웁니다(화면 문구는 프론트에서 정함).
+**용량**(`dose_per_time`): AI 문서 4-9 모양 `{text, min, max, unit, parsed}`에 `confidence`, `needs_check`를 더합니다. `parsed: false`(적당량 등)면 `needs_check: true`이고 "용량을 확인해 주세요"를 띄웁니다. 용량은 필수 칸이 아니라 그대로 확정할 수 있습니다. 회원이 고친 용량(직접 추가한 줄 포함)은 `edited: true`이고, 이 용량을 읽을 수 없을 때는 OCR 칸과 다른 문구 "숫자와 단위로 적어 주시면 더 정확해요 (예: 1정, 0.5정, 5mL)"를 띄웁니다(화면 문구는 프론트에서 정함, 11/25 설아). OCR 용량은 `edited: false`입니다.
 
 **약품 매칭**(`match`):
 
@@ -2418,3 +2418,4 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
 | 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
 | 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd_v2.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
+| 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
