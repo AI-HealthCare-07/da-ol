@@ -1,0 +1,69 @@
+{
+  "version": "V2",
+  "requestId": "fixture",
+  "timestamp": 1795000000000,
+  "images": [
+    {
+      "uid": "fixture-uid",
+      "name": "page",
+      "inferResult": "SUCCESS",
+      "message": "SUCCESS",
+      "validationResult": {
+        "result": "NO_REQUESTED"
+      },
+      "convertedImageInfo": {
+        "width": 450,
+        "height": 314,
+        "pageIndex": 0,
+        "longImage": false
+      },
+      "tables": [],
+      "fields": [
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 120, "y": 34}, {"x": 133, "y": 34}, {"x": 133, "y": 48}, {"x": 120, "y": 48}]}, "inferText": "처", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 139, "y": 34}, {"x": 152, "y": 34}, {"x": 152, "y": 48}, {"x": 139, "y": 48}]}, "inferText": "방", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 158, "y": 34}, {"x": 171, "y": 34}, {"x": 171, "y": 48}, {"x": 158, "y": 48}]}, "inferText": "전", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 177, "y": 34}, {"x": 226, "y": 34}, {"x": 226, "y": 48}, {"x": 177, "y": 48}]}, "inferText": "(Case", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 232, "y": 34}, {"x": 254, "y": 34}, {"x": 254, "y": 48}, {"x": 232, "y": 48}]}, "inferText": "04", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 260, "y": 34}, {"x": 273, "y": 34}, {"x": 273, "y": 48}, {"x": 260, "y": 48}]}, "inferText": "-", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 279, "y": 34}, {"x": 310, "y": 34}, {"x": 310, "y": 48}, {"x": 279, "y": 48}]}, "inferText": "정상)", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 28, "y": 78}, {"x": 77, "y": 78}, {"x": 77, "y": 92}, {"x": 28, "y": 92}]}, "inferText": "교부번호:", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 83, "y": 78}, {"x": 204, "y": 78}, {"x": 204, "y": 92}, {"x": 83, "y": 92}]}, "inferText": "2026-1124-004", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 210, "y": 78}, {"x": 223, "y": 78}, {"x": 223, "y": 92}, {"x": 210, "y": 92}]}, "inferText": "|", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 229, "y": 78}, {"x": 269, "y": 78}, {"x": 269, "y": 92}, {"x": 229, "y": 92}]}, "inferText": "처방일:", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 275, "y": 78}, {"x": 369, "y": 78}, {"x": 369, "y": 92}, {"x": 275, "y": 92}]}, "inferText": "2026-11-24", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 28, "y": 99}, {"x": 77, "y": 99}, {"x": 77, "y": 113}, {"x": 28, "y": 113}]}, "inferText": "의료기관:", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 83, "y": 99}, {"x": 150, "y": 99}, {"x": 150, "y": 113}, {"x": 83, "y": 113}]}, "inferText": "논공이비인후과", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 156, "y": 99}, {"x": 169, "y": 99}, {"x": 169, "y": 113}, {"x": 156, "y": 113}]}, "inferText": "|", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 175, "y": 99}, {"x": 224, "y": 99}, {"x": 224, "y": 113}, {"x": 175, "y": 113}]}, "inferText": "환자성명:", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 230, "y": 99}, {"x": 270, "y": 99}, {"x": 270, "y": 113}, {"x": 230, "y": 113}]}, "inferText": "[비식별", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 276, "y": 99}, {"x": 307, "y": 99}, {"x": 307, "y": 113}, {"x": 276, "y": 113}]}, "inferText": "샘플]", "inferConfidence": 0.99, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 32, "y": 134}, {"x": 72, "y": 134}, {"x": 72, "y": 148}, {"x": 32, "y": 148}]}, "inferText": "의약품명", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 152, "y": 134}, {"x": 174, "y": 134}, {"x": 174, "y": 148}, {"x": 152, "y": 148}]}, "inferText": "1회", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 180, "y": 134}, {"x": 211, "y": 134}, {"x": 211, "y": 148}, {"x": 180, "y": 148}]}, "inferText": "투약량", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 232, "y": 134}, {"x": 254, "y": 134}, {"x": 254, "y": 148}, {"x": 232, "y": 148}]}, "inferText": "1일", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 260, "y": 134}, {"x": 282, "y": 134}, {"x": 282, "y": 148}, {"x": 260, "y": 148}]}, "inferText": "횟수", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 294, "y": 134}, {"x": 307, "y": 134}, {"x": 307, "y": 148}, {"x": 294, "y": 148}]}, "inferText": "총", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 313, "y": 134}, {"x": 335, "y": 134}, {"x": 335, "y": 148}, {"x": 313, "y": 148}]}, "inferText": "일수", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 350, "y": 134}, {"x": 372, "y": 134}, {"x": 372, "y": 148}, {"x": 350, "y": 148}]}, "inferText": "용법", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 32, "y": 164}, {"x": 108, "y": 164}, {"x": 108, "y": 178}, {"x": 32, "y": 178}]}, "inferText": "코대원포르테시럽", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 152, "y": 164}, {"x": 192, "y": 164}, {"x": 192, "y": 178}, {"x": 152, "y": 178}]}, "inferText": "20mL", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 232, "y": 164}, {"x": 254, "y": 164}, {"x": 254, "y": 178}, {"x": 232, "y": 178}]}, "inferText": "3회", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 294, "y": 164}, {"x": 316, "y": 164}, {"x": 316, "y": 178}, {"x": 294, "y": 178}]}, "inferText": "3일", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 350, "y": 164}, {"x": 372, "y": 164}, {"x": 372, "y": 178}, {"x": 350, "y": 178}]}, "inferText": "식후", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 378, "y": 164}, {"x": 409, "y": 164}, {"x": 409, "y": 178}, {"x": 378, "y": 178}]}, "inferText": "30분", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 32, "y": 194}, {"x": 72, "y": 194}, {"x": 72, "y": 208}, {"x": 32, "y": 208}]}, "inferText": "펠루비정", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 152, "y": 194}, {"x": 174, "y": 194}, {"x": 174, "y": 208}, {"x": 152, "y": 208}]}, "inferText": "1정", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 232, "y": 194}, {"x": 254, "y": 194}, {"x": 254, "y": 208}, {"x": 232, "y": 208}]}, "inferText": "3회", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 294, "y": 194}, {"x": 316, "y": 194}, {"x": 316, "y": 208}, {"x": 294, "y": 208}]}, "inferText": "3일", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 350, "y": 194}, {"x": 372, "y": 194}, {"x": 372, "y": 208}, {"x": 350, "y": 208}]}, "inferText": "식후", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 378, "y": 194}, {"x": 409, "y": 194}, {"x": 409, "y": 208}, {"x": 378, "y": 208}]}, "inferText": "30분", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": true},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 32, "y": 224}, {"x": 81, "y": 224}, {"x": 81, "y": 238}, {"x": 32, "y": 238}]}, "inferText": "무코스타정", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 152, "y": 224}, {"x": 174, "y": 224}, {"x": 174, "y": 238}, {"x": 152, "y": 238}]}, "inferText": "1정", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 232, "y": 224}, {"x": 254, "y": 224}, {"x": 254, "y": 238}, {"x": 232, "y": 238}]}, "inferText": "3회", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 294, "y": 224}, {"x": 316, "y": 224}, {"x": 316, "y": 238}, {"x": 294, "y": 238}]}, "inferText": "3일", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 350, "y": 224}, {"x": 372, "y": 224}, {"x": 372, "y": 238}, {"x": 350, "y": 238}]}, "inferText": "식후", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 378, "y": 224}, {"x": 409, "y": 224}, {"x": 409, "y": 238}, {"x": 378, "y": 238}]}, "inferText": "30분", "inferConfidence": 0.98, "type": "NORMAL", "lineBreak": true}
+      ]
+    }
+  ]
+}

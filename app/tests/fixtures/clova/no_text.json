@@ -1,0 +1,27 @@
+{
+  "version": "V2",
+  "requestId": "fixture",
+  "timestamp": 1795000000000,
+  "images": [
+    {
+      "uid": "fixture-uid",
+      "name": "page",
+      "inferResult": "SUCCESS",
+      "message": "SUCCESS",
+      "validationResult": {
+        "result": "NO_REQUESTED"
+      },
+      "convertedImageInfo": {
+        "width": 1200,
+        "height": 900,
+        "pageIndex": 0,
+        "longImage": false
+      },
+      "tables": [],
+      "fields": [
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 100, "y": 100}, {"x": 113, "y": 100}, {"x": 113, "y": 114}, {"x": 100, "y": 114}]}, "inferText": "ㅁ", "inferConfidence": 0.31, "type": "NORMAL", "lineBreak": false},
+        {"valueType": "ALL", "boundingPoly": {"vertices": [{"x": 119, "y": 100}, {"x": 132, "y": 100}, {"x": 132, "y": 114}, {"x": 119, "y": 114}]}, "inferText": "l", "inferConfidence": 0.22, "type": "NORMAL", "lineBreak": true}
+      ]
+    }
+  ]
+}
