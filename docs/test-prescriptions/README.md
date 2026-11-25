@@ -4,10 +4,10 @@
 > 기준 스키마: `daol_API_명세서.md` 6장 `GET /scans/{scan_id}` & `POST /scans/{scan_id}/confirm` Request Body
 > 구성: 정상 6건 + 함정 4건 + 선택 확장 3건(약봉투 · 개인정보 마스킹 · 비경구약 거절)
 > 참고 사항:
-> - 본 문서의 `drug_id`(1001~1026)는 공공데이터(`drugs`) 적재 전 **예시 ID**입니다. 실제 테스트 비교 시에는 `drug_name`(`item_name`) 또는 품목기준코드 기준으로 대조해 주세요.
+> - 본 문서의 `drug_id`(1001~1024)는 공공데이터(`drugs`) 적재 전 **예시 ID**입니다. 실제 테스트 시 매칭 결과는 `drugs.item_name` 또는 품목기준코드로, 확정 Body의 `drug_name`은 처방전 원문 이름으로 대조해 주세요.
 > - 각 약품 항목의 `raw_text`는 `GET /scans/{scan_id}` 단계에서 추출·마스킹된 원문 줄이며, 표현 사전 테스트용으로 함께 기재했습니다.
 
-| 번호 | 구분 | 유형 | 문서 종류 | 이미지 | 약품 수 |
+| 번호 | 구분 | 유형 | 문서 종류 (`doc_type`) | 이미지 | 약품 수 |
 | --- | --- | --- | --- | --- | --- |
 | Case 01 | 정상 1 | 고혈압·이상지질혈증 정기 처방 | `prescription` | `./case01.png` | 2개 |
 | Case 02 | 정상 2 | 당뇨·위장보호 복합 처방 | `prescription` | `./case02.png` | 2개 |
@@ -19,14 +19,14 @@
 | Case 08 | 함정 2 | 공공데이터에 없는 약 이름 | `prescription` | `./case08.png` | 2개 |
 | Case 09 | 함정 3 | 비정상·오인식 용량 (`10정`) | `prescription` | `./case09.png` | 2개 |
 | Case 10 | 함정 4 | 마지막 줄 약 하나 빠짐 주의 처방 | `prescription` | `./case10.png` | 3개 |
-| Case 11 | 선택 1 | 약봉투(`pill_bag`) 포맷 인식 | `pill_bag` | `./case11.png` | 2개 |
+| Case 11 | 선택 1 | 약봉투(`pill_envelope`) 포맷 인식 | `pill_envelope` | `./case11.png` | 2개 |
 | Case 12 | 선택 2 | 가상 개인정보 마스킹(`mask_text()`) 확인 | `prescription` | `./case12.png` | 2개 |
 | Case 13 | 선택 3 | 비경구약(`is_oral: false`) 거절 확인 | `prescription` | `./case13.png` | 2개 |
 
 ---
 
 ## Case 01 [정상 1] 고혈압·이상지질혈증 정기 처방
-- **예시 이미지:** `./case01.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case01.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `아모잘탄정 5/50mg` | 1회 용량: `1정` | 1일 횟수: `1회` | 총 일수: `30일` | 복용 조건: `아침 식후 30분`
   2. `리바로정 2mg` | 1회 용량: `1정` | 1일 횟수: `1회` | 총 일수: `30일` | 복용 조건: `저녁 식후 30분`
@@ -80,7 +80,7 @@
 ---
 
 ## Case 02 [정상 2] 당뇨·위장보호 복합 처방
-- **예시 이미지:** `./case02.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case02.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `자누메트정 50/500mg` | 1회 용량: `1정` | 1일 횟수: `2회` | 총 일수: `30일` | 복용 조건: `아침·저녁 식후 30분`
   2. `알마겔정` | 1회 용량: `1정` | 1일 횟수: `3회` | 총 일수: `14일` | 복용 조건: `식후 30분`
@@ -137,7 +137,7 @@
 ---
 
 ## Case 03 [함정 1 — 끼니 안 적힌 1일 2회] 위장약 처방
-- **예시 이미지:** `./case03.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case03.png` (`doc_type: "prescription"`)
 - **함정 포인트:** `넥시움정 20mg`의 용법란에 끼니(아침/점심/저녁) 및 식전·식후 조건 없이 `1일 2회 복용`만 기재된 경우
 - **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
   - `drugs[0]` (`넥시움정 20mg`): `dosage.needs_confirm: true`, `dosage.doses: [{ "dose_no": 1, "meal": null, "timing": null, "offset_min": null }, { "dose_no": 2, "meal": null, "timing": null, "offset_min": null }]`
@@ -195,7 +195,7 @@
 ---
 
 ## Case 04 [정상 3] 급성 기관지염·감기 시럽·정제 처방
-- **예시 이미지:** `./case04.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case04.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `코대원포르테시럽` | 1회 용량: `20mL` | 1일 횟수: `3회` | 총 일수: `3일` | 복용 조건: `식후 30분`
   2. `펠루비정` | 1회 용량: `1정` | 1일 횟수: `3회` | 총 일수: `3일` | 복용 조건: `식후 30분`
@@ -274,7 +274,7 @@
 ---
 
 ## Case 05 [정상 4] 식전·취침 전 복용 조건 포함 처방
-- **예시 이미지:** `./case05.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case05.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `란스톤엘에프디티정 30mg` | 1회 용량: `1정` | 1일 횟수: `1회` | 총 일수: `14일` | 복용 조건: `아침 식전 30분`
   2. `모사프리드정 5mg` | 1회 용량: `1정` | 1일 횟수: `3회` | 총 일수: `14일` | 복용 조건: `식전 30분`
@@ -344,13 +344,14 @@
     ]
   }
   ```
--- **기대 동작:**
+- **기대 동작:**
   - `GET /scans/{scan_id}` 단계: `모사프리드정 5mg`는 DB에 제조사명이 붙어 등록되어 있으므로 `match.status: "candidates"`로 반환
   - 확정 후: `before_meal`(식전 30분) 및 `bedtime`(취침 전, `meal: null`) 조건 정상 매핑, `conditions_to_confirm: []`
+
 ---
 
 ## Case 06 [정상 5] 필요시(PRN) 복용 약 포함 처방
-- **예시 이미지:** `./case06.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case06.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `쎄레브렉스캡슐 200mg` | 1회 용량: `1캡슐` | 1일 횟수: `2회` | 총 일수: `7일` | 복용 조건: `아침·저녁 식후 30분`
   2. `타이레놀정 500mg` | 1회 용량: `1정` | 1일 횟수: `null` | 총 일수: `3일` | 복용 조건: `필요시 복용`
@@ -403,7 +404,7 @@
 ---
 
 ## Case 07 [정상 6] 만성질환 다제약물(4종) 복합 처방
-- **예시 이미지:** `./case07.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case07.png` (`doc_type: "prescription"`)
 - **약 목록 요약:**
   1. `노바스크정 5mg` | 1회 용량: `1정` | 1일 횟수: `1회` | 총 일수: `30일` | 복용 조건: `아침 식후 30분`
   2. `다이아벡스정 500mg` | 1회 용량: `1정` | 1일 횟수: `2회` | 총 일수: `30일` | 복용 조건: `아침·저녁 식후 즉시`
@@ -496,7 +497,7 @@
 ---
 
 ## Case 08 [함정 2 — 없는 약 이름] 공공데이터 미등록 약품 포함
-- **예시 이미지:** `./case08.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case08.png` (`doc_type: "prescription"`)
 - **함정 포인트:** 공공데이터(`drugs`) DB에 존재하지 않는 약품명(`다올비타플러스정`)이 포함된 경우
 - **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
   - `drugs[0]` (`다올비타플러스정`): `match.status: "none"`, `match.drug_id: null`
@@ -553,7 +554,7 @@
 ---
 
 ## Case 09 [함정 3 — 틀린 용량] 비정상·오인식 용량(`10정`) 포함
-- **예시 이미지:** `./case09.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case09.png` (`doc_type: "prescription"`)
 - **함정 포인트:** 처방전 이미지의 `타이레놀8시간이알서방정` 1회 투약량이 `10정`(오타 또는 OCR 오인식)으로 표기된 경우
 - **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
   - `drugs[0]` (`타이레놀8시간이알서방정`): 임의로 고치지 않고 원본 그대로 추출 → `dose_per_time: { "text": "10정", "min": 10, "max": 10, "unit": "정", "parsed": true }`
@@ -610,9 +611,9 @@
 ---
 
 ## Case 10 [함정 4 — 약 하나 빠짐] 마지막 줄 약 누락 주의 처방
-- **예시 이미지:** `./case10.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case10.png` (`doc_type: "prescription"`)
 - **함정 포인트:** 총 3개 약물 중 마지막 3번째 줄(`가스모틴정 5mg`)이 흐리게 인쇄되어 OCR·구조화 과정에서 누락되기 쉬운 경우
-- - **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
+- **`GET /scans/{scan_id}` 단계(수정 전) 기대값:**
   - 추출 줄 수 `3` (`drugs.length == 3` — 3줄 모두 추출되어야 함, OCR 누락 여부를 보는 케이스)
   - `트라젠타정 5mg`(DB 등록명: `트라젠타정(리나글립틴)`), `아토르바스타틴정 10mg`(제조사명 포함 등록)는 `match.status: "candidates"`로 반환
 - **확정 정답값 (`POST /scans/{scan_id}/confirm` Request Body & `raw_text` 기준):**
@@ -684,8 +685,8 @@
 
 ---
 
-## Case 11 [선택 1 — 약봉투] 조제봉투 포맷 인식 (`document_type: "pill_bag"`)
-- **예시 이미지:** `./case11.png` (`document_type: "pill_bag"`, API 명세서 6장 기준 약봉투 코드)
+## Case 11 [선택 1 — 약봉투] 조제봉투 포맷 인식 (`doc_type: "pill_envelope"`)
+- **예시 이미지:** `./case11.png` (`doc_type: "pill_envelope"`)
 - **약 목록 요약:**
   1. `세토펜정 325mg` | 1회 용량: `1정` | 1일 횟수: `3회` | 총 일수: `3일` | 복용 조건: `식후 30분`
   2. `베아제정` | 1회 용량: `1정` | 1일 횟수: `3회` | 총 일수: `3일` | 복용 조건: `식후 30분`
@@ -738,16 +739,16 @@
     ]
   }
   ```
-- **기대 동작:** `document_type: "pill_bag"` 업로드 시 조제약국명 및 약 목록 정상 추출·확정
+- **기대 동작:** `doc_type: "pill_envelope"` 업로드 시 조제약국명 및 약 목록 정상 추출·확정
 
 ---
 
 ## Case 12 [선택 2 — 개인정보 마스킹] 가상 주민번호·연락처 포함 (`mask_text()` 확인)
-- **예시 이미지:** `./case12.png` (`document_type: "prescription"`)
-- **테스트 포인트:** 이미지 상단에 가상 환자 성명, 가상 주민등록번호, 가상 연락처(`010-0000-0000`)가 포함된 경우 `mask_text()` 동작 검증
+- **예시 이미지:** `./case12.png` (`doc_type: "prescription"`)
+- **테스트 포인트:** 이미지 상단에 가상 환자 성명(`김다올`), 가상 주민등록번호(`000101-3000000`), 가상 연락처(`010-0000-0000`)가 포함된 경우 `mask_text()` 동작 검증
 - **`GET /scans/{scan_id}` 단계 기대값:**
   - `masked: true` 반환
-  - LLM 구조화 요청 전 `mask_text()`가 이름·주민등록번호·연락처를 마스킹 처리하여 전달하며, 추출된 `drugs[].raw_text` 및 확정 데이터에 개인정보가 남지 않음
+  - LLM 구조화 요청 전 `mask_text()`가 이름(`김다올`)·주민등록번호(`000101-3000000`)·연락처(`010-0000-0000`)를 마스킹 처리하여 전달하며, 추출된 `drugs[].raw_text` 및 확정 데이터에 개인정보가 남지 않음
 - **확정 정답값 (`POST /scans/{scan_id}/confirm` Request Body & `raw_text` 기준):**
   ```json
   {
@@ -799,7 +800,7 @@
 ---
 
 ## Case 13 [선택 3 — 비경구약 거절] 먹는 약이 아닌 약(`is_oral: false`) 포함
-- **예시 이미지:** `./case13.png` (`document_type: "prescription"`)
+- **예시 이미지:** `./case13.png` (`doc_type: "prescription"`)
 - **테스트 포인트:** 점안액(`히알유니점안액 0.15%`) 및 외용 연고(`에스로반연고`)처럼 먹는 약이 아닌 약품(`is_oral: false`)만 포함된 처방전
 - **약 목록 요약:**
   1. `히알유니점안액 0.15%` | 1회 용량: `1방울` | 1일 횟수: `4회` | 총 일수: `14일` | 용법: `양안 점안` (`is_oral: false`)
