@@ -136,9 +136,11 @@ class DosePerTime(BaseModel):
 
 
 class DosePerTimeField(DosePerTime):
-    """인식 결과의 1회 용량. parsed: false면 needs_check: true."""
+    """인식 결과의 1회 용량. parsed: false면 needs_check: true.
+    회원이 PATCH로 고친 용량이면 edited: true(고친 용량을 읽을 수 없으면 needs_check도 true, 6-2 예외)."""
     confidence: float | None = Field(..., ge=0, le=1)
     needs_check: bool
+    edited: bool = False   # 프론트가 고친 용량과 OCR 용량의 안내 문구를 나누는 데 씀(11/25 설아)
 
 
 class DrugCandidate(BaseModel):
