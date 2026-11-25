@@ -1,0 +1,24 @@
+{
+  "version": "V2",
+  "requestId": "fixture",
+  "timestamp": 1795000000000,
+  "images": [
+    {
+      "uid": "fixture-uid",
+      "name": "page",
+      "inferResult": "FAILURE",
+      "message": "Image Recognize Failure",
+      "validationResult": {
+        "result": "NO_REQUESTED"
+      },
+      "convertedImageInfo": {
+        "width": 450,
+        "height": 314,
+        "pageIndex": 0,
+        "longImage": false
+      },
+      "tables": [],
+      "fields": []
+    }
+  ]
+}
