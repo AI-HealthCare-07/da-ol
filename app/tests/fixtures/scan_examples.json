@@ -353,14 +353,14 @@
         "prescription_item_id": 502,
         "drug_name": "가상캡슐 250mg",
         "dose_no": 1,
-        "reason": "meal_unknown"
+        "reason": "timing_unknown"
       },
       {
         "condition_id": 5015,
         "prescription_item_id": 502,
         "drug_name": "가상캡슐 250mg",
         "dose_no": 2,
-        "reason": "meal_unknown"
+        "reason": "timing_unknown"
       }
     ]
   },

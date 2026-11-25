@@ -1801,8 +1801,8 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
     "status": "confirmed",
     "prescription_id": 88,
     "conditions_to_confirm": [
-      { "condition_id": 5014, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 1, "reason": "meal_unknown" },
-      { "condition_id": 5015, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 2, "reason": "meal_unknown" }
+      { "condition_id": 5014, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 1, "reason": "timing_unknown" },
+      { "condition_id": 5015, "prescription_item_id": 502, "drug_name": "가상캡슐 250mg", "dose_no": 2, "reason": "timing_unknown" }
     ]
   }
   ```

@@ -46,6 +46,9 @@ def test_parse_deterministic():
     ("면허번호 54321", "면허번호 [면허번호]"),
     ("주민등록번호 900101-1234567", "주민등록번호 [주민번호]"),
     ("등록번호 A-1234", "등록번호 [환자번호]"),
+    ("900101 1234567", "[주민번호]"),           # 챗봇에서 띄어 쓴 경우
+    ("연락처 010 1234 5678", "연락처 [연락처]"),
+    ("02 123 4567로 전화", "[연락처]로 전화"),
 ])
 def test_mask(text, expected):
     assert mask_text(text) == expected
@@ -55,6 +58,17 @@ def test_mask_keeps_dose_text():
     # 약 줄의 숫자는 가리면 안 됩니다
     line = "가상정5mg 1 3 5 식후30분"
     assert mask_text(line) == line
+
+
+@pytest.mark.parametrize("text", [
+    "혈압 130 85 정도예요",
+    "10 20mg 먹어도 되나요",
+    "2026 11 25 처방",
+    "가상정5mg 1 3 5 식후30분",
+])
+def test_mask_keeps_spaced_numbers(text):
+    # 띄어 쓴 번호 규칙이 일반 숫자를 가리면 안 됩니다
+    assert mask_text(text) == text
 
 
 def test_mask_name_only_with_label():
@@ -74,7 +88,10 @@ from app.services.text_rules import normalize_drug_name
     ("가상산1그램", "가상산 1g"),
     ("가상크림1퍼센트", "가상크림 1%"),
     ("가상정5/50MG", "가상정 5/50mg"),
-    ("가상정(가상성분)5밀리그램", "가상정가상성분 5mg"),   # 괄호 기호만 지움
+    ("가상정(가상성분)5밀리그램", "가상정 5mg"),   # 괄호 안 내용까지 지움
+    ("가스모틴정5밀리그램(모사프리드시트르산염수화물)", "가스모틴정 5mg"),
+    ("스티렌투엑스정(애엽95%에탄올연조엑스(20→1))", "스티렌투엑스정"),   # 괄호 안에 괄호
+    ("무코스타정(레바미피드)", "무코스타정"),
 ])
 def test_normalize_drug_name_same(permit, rx):
     assert normalize_drug_name(permit) == normalize_drug_name(rx)
@@ -84,6 +101,8 @@ def test_normalize_drug_name_same(permit, rx):
     ("아모잘탄정 5/50mg", "아모잘탄정5/50mg"),
     ("가상 캡슐", "가상캡슐"),
     ("프로그램정", "프로그램정"),          # 숫자 뒤가 아닌 '그램'은 그대로
+    ("가상정[가상(성분)]5mg", "가상정5mg"),  # 종류가 다른 괄호가 겹친 경우
+    ("가상정(5mg", "가상정5mg"),           # 짝이 안 맞는 괄호는 기호만 지움
     ("", ""),
 ])
 def test_normalize_drug_name_values(name, expected):

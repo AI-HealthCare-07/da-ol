@@ -111,12 +111,14 @@ _LABELED_RULES: list[tuple[re.Pattern[str], str]] = [
 
 # 2) 모양만으로 알 수 있는 값
 _SHAPE_RULES: list[tuple[re.Pattern[str], str]] = [
-    # 주민등록번호: 뒷자리 일부가 *로 가려진 경우도 포함
-    (re.compile(r"(?<!\d)\d{6}\s*-\s*[1-8][\d*]{6}(?!\d)"), "[주민번호]"),
+    # 주민등록번호: 하이픈 또는 띄어쓰기로 나눈 경우(900101-1234567, 900101 1234567).
+    # 뒷자리 일부가 *로 가려진 경우도 포함
+    (re.compile(r"(?<!\d)\d{6}(?:\s*-\s*|\s+)[1-8][\d*]{6}(?!\d)"), "[주민번호]"),
     (re.compile(r"(?<!\d)\d{6}[1-8]\d{6}(?!\d)"), "[주민번호]"),
     (re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"), "[이메일]"),
-    # 전화번호: 010-1234-5678, 02)123-4567, 031.123.4567
+    # 전화번호: 010-1234-5678, 02)123-4567, 031.123.4567, 010 1234 5678(챗봇에서 띄어 쓴 경우)
     (re.compile(r"(?<!\d)0\d{1,2}\s*[-.)]?\s*\d{3,4}\s*[-.]\s*\d{4}(?!\d)"), "[연락처]"),
+    (re.compile(r"(?<!\d)0\d{1,2}\s+\d{3,4}\s+\d{4}(?!\d)"), "[연락처]"),
     (re.compile(r"(?<!\d)01[016789]\d{7,8}(?!\d)"), "[연락처]"),
 ]
 
@@ -181,6 +183,10 @@ _DRUG_UNIT_RULES: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
+# 안쪽에 다른 괄호가 없는 괄호 한 쌍(내용 포함)
+_BRACKET_RE = re.compile(r"\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}")
+
+
 def normalize_drug_name(name: str) -> str:
     """처방전 표기와 허가정보 제품명을 같은 모양으로 맞춥니다.
 
@@ -188,11 +194,23 @@ def normalize_drug_name(name: str) -> str:
     True
     >>> normalize_drug_name("아모잘탄정 5/50mg")
     '아모잘탄정5/50mg'
+    >>> normalize_drug_name("가스모틴정5밀리그램(모사프리드시트르산염수화물)")
+    '가스모틴정5mg'
+
+    괄호는 안의 내용까지 지웁니다. 그래서 이름이 같아지는 약이 여러 개일 수 있으니,
+    매칭에서는 정확 일치가 1개일 때만 exact, 여러 개면 candidates로 돌려줘야 합니다(6-2).
     """
     if not name:
         return ""
     s = unicodedata.normalize("NFKC", name).lower()   # ㎎→mg, ㎖→ml, 전각 문자 정리
     for pattern, repl in _DRUG_UNIT_RULES:
         s = pattern.sub(repl, s)
-    s = re.sub(r"[()\[\]{}]", "", s)                     # 명세서 GET /drugs: 공백·괄호를 지우고 비교
+    # 괄호는 안의 내용까지 지웁니다. 허가정보 이름 뒤에 붙은 성분명('가스모틴정5밀리그램(모사프리드…)')이
+    # 처방전 표기와의 정확 일치를 막기 때문입니다. 괄호 안에 괄호가 있는 이름도 있어서(스티렌투엑스정)
+    # 안쪽 괄호부터 더 지울 게 없을 때까지 반복합니다. 짝이 맞지 않는 괄호 기호는 마지막에 기호만 지웁니다.
+    prev = None
+    while prev != s:
+        prev = s
+        s = _BRACKET_RE.sub("", s)
+    s = re.sub(r"[()\[\]{}]", "", s)
     return re.sub(r"\s+", "", s)

@@ -1,6 +1,6 @@
 """
 OCR 처방 등록 입출력 계약 v1.1 — 담당: AI A 채민
-API 명세서 6장(처방 등록·검증)에 맞춘 Pydantic 모델입니다. 설명·v0 대비 변경점은 scan_contract_v1.md 참고(docs).
+API 명세서 6장(처방 등록·검증)에 맞춘 Pydantic 모델입니다. 칸 설명은 docs/planning/daol_API_명세서.md 6장을 참고하세요.
 
 원칙
 - 이 파일은 "모양"(필드 이름·타입·enum)만 정합니다.
