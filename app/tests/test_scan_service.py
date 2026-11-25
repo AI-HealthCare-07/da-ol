@@ -338,6 +338,25 @@ def test_edit_dose_text_reparsed():
     assert (d["dose_per_time"]["min"], d["dose_per_time"]["unit"], d["dose_per_time"]["needs_check"]) == (0.5, "정", False)
 
 
+def test_edit_dose_marks_edited():
+    # 고친 용량은 edited: true. 읽을 수 있으면 needs_check: false (명세서 6-2)
+    d = edit({"drugs": [{"line_no": 2, "dose_per_time": {"text": "1/2정"}}]})["drugs"][1]
+    assert d["dose_per_time"]["edited"] is True and d["dose_per_time"]["needs_check"] is False
+
+
+def test_edit_dose_unparsed_keeps_needs_check():
+    # 6-2 예외: 고친 용량을 읽을 수 없으면(parsed: false) needs_check: true 유지
+    d = edit({"drugs": [{"line_no": 2, "dose_per_time": {"text": "적당량"}}]})["drugs"][1]
+    dose = d["dose_per_time"]
+    assert (dose["parsed"], dose["needs_check"], dose["edited"], dose["confidence"]) == (False, True, True, None)
+
+
+def test_ocr_dose_not_edited():
+    # 고치지 않은 줄의 용량은 edited: false
+    d = edit({"drugs": [{"line_no": 2, "times_per_day": 2}]})["drugs"][0]
+    assert d["dose_per_time"].get("edited", False) is False
+
+
 def test_edit_dosage_sets_user():
     d = edit({"drugs": [{"line_no": 2, "dosage": {"as_needed": False, "doses": [
         {"dose_no": 1, "meal": "breakfast", "timing": "after_meal", "offset_min": 30},

@@ -546,8 +546,8 @@ def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tu
                 drug["is_oral"] = found[1]
         if "dose_per_time" in e:
             dose = parse_dose_text(edit.dose_per_time.text)
-            # ⚠ 회원이 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없는 용량은 계속 표시
-            drug["dose_per_time"] = {**dose, "confidence": None, "needs_check": not dose["parsed"]}
+            # 명세서 6-2 예외: 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없는 용량은 계속 표시
+            drug["dose_per_time"] = {**dose, "confidence": None, "needs_check": not dose["parsed"], "edited": True}
         if "total_days" in e:
             drug["total_days"] = user(edit.total_days)
         if "times_per_day" in e:
@@ -581,7 +581,7 @@ def _new_line(line_no: int, start_date: date) -> dict:
         "drug_name": dict(empty), "match": {"status": "none", "drug_id": None, "candidates": []},
         "is_oral": None,
         "dose_per_time": {"text": "", "min": None, "max": None, "unit": None, "parsed": False,
-                          "confidence": None, "needs_check": True},
+                          "confidence": None, "needs_check": True, "edited": True},  # 회원이 직접 추가한 줄
         "times_per_day": dict(empty), "total_days": dict(empty), "instruction_text": None,
         "dosage": fallback_dosage(None, start_date).model_dump(mode="json"),
     }
