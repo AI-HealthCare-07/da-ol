@@ -20,6 +20,11 @@ class MedicalDocument(models.Model):
         null=True,
         description="OCR 처리 시작 시각. 문서 종류를 다시 고른 뒤 90초 넘게 안 끝나면 실패 처리하는 기준(채민 요청)",
     )
+    fail_reason = fields.CharField(
+        max_length=30,
+        null=True,
+        description="ocr_failed일 때만 값: ocr_error / no_text / no_drug_found / structure_error / timeout (채민 요청)",
+    )
     created_at = fields.DatetimeField(auto_now_add=True)
     confirmed_at = fields.DatetimeField(null=True)
 

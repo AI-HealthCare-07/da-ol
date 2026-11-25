@@ -19,6 +19,7 @@
 //       + 11/24 결정: 파트너 알림 '약 이름 함께 보내기' 옵션 제외 → user_settings.partner_include_drug_names 삭제
 //       + 11/24 추가: drugs.item_name_norm(정규화 이름, pg_trgm GIN), drugs.data_source CHECK(easy_drug / permit),
 //         medical_documents.processing_started_at (채민 요청)
+//       + 11/25 추가: medical_documents.fail_reason (채민 요청)
 // dbdiagram.io 에 그대로 붙여넣어 사용 / DB: PostgreSQL 가정
 //
 // 헤더 색상 = 구현 단계 (결정 사항 5-1)
@@ -379,6 +380,7 @@ Table medical_documents [headercolor: #3B82F6] {
   parsed_result text [note: "확인 화면용 구조화 결과 JSON(신뢰도, 원문 줄, 페이지 번호, 먹는 약 여부 is_oral 포함. '먹는 약 아님' 줄은 확정 시 저장하지 않음). 이름·주민등록번호·환자번호·면허번호·연락처 마스킹 후 JSON 문자열을 암호화해 저장(암호화하면 jsonb 질의가 안 되므로 text). 확정 시 처방 테이블로 옮긴 뒤 NULL로 비우고, 3시간 만료 시에도 NULL (NFR-004)"]
   image_delete_due_at timestamptz [not null, note: '업로드 + 3시간(환경 변수로 관리). 그 전에 확정되면 확정 시 삭제 (6-10)']
   processing_started_at timestamptz [note: 'OCR 처리 시작 시각. 문서 종류를 다시 고른 뒤 90초 넘게 안 끝나면 실패 처리하는 기준(채민 요청)']
+  fail_reason varchar(30) [note: 'ocr_failed일 때만 값: ocr_error / no_text / no_drug_found / structure_error / timeout. 나머지 상태는 NULL (채민 요청, 11/25)']
   created_at timestamptz [not null, default: `now()`]
   confirmed_at timestamptz
   Note: 'OCR-001~005. 한 번 업로드 = 처방 한 건 (병원명·처방일이 다르면 따로 등록 안내). 질병분류기호는 저장하지 않음'
