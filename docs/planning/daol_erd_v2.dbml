@@ -412,9 +412,9 @@ Table document_pages [headercolor: #3B82F6] {
 Table drugs [headercolor: #3B82F6] {
   id bigint [pk, increment]
   item_seq varchar(20) [not null, unique, note: '식약처 품목기준코드']
-  item_name varchar(200) [not null, note: '상품명']
-  item_name_norm varchar(200) [not null, note: "normalize_drug_name()으로 정규화한 이름. 적재할 때 함께 채움. 이름 유사도 검색(pg_trgm)용 GIN 인덱스 (채민 요청, 11/24)"]
-  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). 1차 성분명 검색(GET /drugs?q=)에도 사용. 2차부터 DUR·같은 성분 중복 검사는 drug_ingredients 사용']
+  item_name varchar(500) [not null, note: '상품명']
+  item_name_norm varchar(500) [not null, note: "normalize_drug_name()으로 정규화한 이름. 적재할 때 함께 채움. 이름 유사도 검색(pg_trgm)용 GIN 인덱스 (채민 요청, 11/24)"]
+  ingredient_name varchar(500) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). 1차 성분명 검색(GET /drugs?q=)에도 사용. 2차부터 DUR·같은 성분 중복 검사는 drug_ingredients 사용']
   company varchar(100)
   efficacy text
   usage_text text
@@ -496,7 +496,7 @@ Table prescription_items [headercolor: #3B82F6] {
   id bigint [pk, increment]
   prescription_id bigint [not null, ref: > prescriptions.id]
   drug_id bigint [ref: >? drugs.id, note: "회원이 고르지 않거나 매칭 실패면 NULL → '이 약은 안내 정보가 없습니다'"]
-  drug_name_raw varchar(200) [not null, note: '처방전에 적힌 약품명']
+  drug_name_raw varchar(500) [not null, note: '처방전에 적힌 약품명']
   source_text varchar(500) [note: '처방전 원문 줄. 확인 화면에서 변환 결과와 나란히 표시. parsed_result와 같은 마스킹 적용']
   dose_text varchar(50) [not null, note: "처방전 표기 그대로 ('1정', '0.5정', '1포')"]
   dose_amount decimal(8,3) [note: '숫자 용량. 숫자 없으면 NULL']

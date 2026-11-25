@@ -8,10 +8,10 @@ class Drug(models.Model):
 
     id = fields.BigIntField(primary_key=True)
     item_seq = fields.CharField(max_length=20, unique=True, description="식약처 품목기준코드")
-    item_name = fields.CharField(max_length=200, db_index=True, description="상품명")
+    item_name = fields.CharField(max_length=500, db_index=True, description="상품명")
     # 이름 검색용. pg_trgm GIN 인덱스(gin_trgm_ops)는 init-db 때 마이그레이션 SQL에 직접 추가
-    item_name_norm = fields.CharField(max_length=200, description="normalize_drug_name()으로 정규화한 이름")
-    ingredient_name = fields.CharField(max_length=300, null=True, db_index=True, description="화면 표시용 성분명")
+    item_name_norm = fields.CharField(max_length=500, description="normalize_drug_name()으로 정규화한 이름")
+    ingredient_name = fields.CharField(max_length=500, null=True, db_index=True, description="화면 표시용 성분명")
     company = fields.CharField(max_length=100, null=True)
     efficacy = fields.TextField(null=True)
     usage_text = fields.TextField(null=True)

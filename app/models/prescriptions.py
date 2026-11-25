@@ -56,7 +56,7 @@ class PrescriptionItem(models.Model):
         on_delete=fields.SET_NULL,
         description="매칭 실패면 NULL",
     )
-    drug_name_raw = fields.CharField(max_length=200, description="처방전에 적힌 약품명")
+    drug_name_raw = fields.CharField(max_length=500, description="처방전에 적힌 약품명")
     source_text = fields.CharField(max_length=500, null=True, description="처방전 원문 줄 (마스킹)")
     dose_text = fields.CharField(max_length=50, description="처방전 표기 그대로 ('1정')")
     dose_amount = fields.DecimalField(max_digits=8, decimal_places=3, null=True)
