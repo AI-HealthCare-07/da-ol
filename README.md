@@ -42,7 +42,7 @@
 | Frontend | (작성 예정) |
 | Backend | FastAPI, Tortoise ORM, Pydantic |
 | AI / LLM | (작성 예정) |
-| Database | MySQL, Redis |
+| Database | PostgreSQL (pgvector), Redis |
 | Infra / 배포 | Docker Compose, Nginx, AWS EC2 |
 | 패키지 관리 | uv |
 | 코드 품질 | Ruff, Mypy, Pytest |

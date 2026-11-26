@@ -1,4 +1,5 @@
 import asyncio
+import os
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import Mock, patch
@@ -16,10 +17,14 @@ TEST_BASE_URL = "http://test"
 TEST_DB_LABEL = "models"
 TEST_DB_TZ = "Asia/Seoul"
 
+# Tortoise는 테스트 DB를 만들 때 DB 이름 없이 먼저 접속하는데, 이때 asyncpg는 사용자 이름과 같은 DB로 접속합니다.
+# DB_USER가 postgres가 아니면 그런 DB가 없으므로, 항상 존재하는 postgres DB로 접속하게 합니다.
+os.environ.setdefault("PGDATABASE", "postgres")
+
 
 def get_test_db_config() -> dict[str, Any]:
     tortoise_config = generate_config(
-        db_url=f"mysql://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test",
+        db_url=f"postgres://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:{config.DB_PORT}/test",
         app_modules={TEST_DB_LABEL: TORTOISE_APP_MODELS},
         connection_label=TEST_DB_LABEL,
         testing=True,

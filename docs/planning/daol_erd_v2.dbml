@@ -1,6 +1,6 @@
 // =====================================================================
 // 다올(Da-Ol) - 진료 기록 기반 복약 안내 및 생활습관 개선 가이드 ERD
-// 기준: 요구사항 정의서 v11 (REQ 79건 = 1차 39 / 2차 28 / 3차 12)
+// 기준: 요구사항 정의서 v11 (REQ 79건) + 1차 축소안(11/20) + API 명세 리뷰(11/22)
 //       11/17 회의(P-01~48) + 11/18 회의(결정 6-1~6-10) + 11/19 범위 축소 반영
 //       (카카오 로그인만 / 먹는 약만 / 퇴원요약지·감량 일정·냉장 보관 제외 / 화분 동기부여 추가)
 //       + 11/20 결정: 카카오톡 복약 알림(NOTI-005, 2차) · 파트너 미복용 알림(NOTI-006, 3차)
@@ -8,7 +8,7 @@
 //       + 11/20 1차 축소안 반영: 35개 → 34개, 1차(파랑) 25개 → 20개
 //         - document_files 를 document_pages 에 통합 (PDF 여러 페이지면 파일 정보가 페이지마다 반복, 3시간 안에 지워지는 임시 데이터)
 //         - daily_routines → 2차 (USER-013 2차. 1차는 기본 일과로 계산)
-//         - drug_ingredients · dur_contraindications → 2차 (MED-007 DUR 2차, MED-001 성분 검색 2차)
+//         - drug_ingredients · dur_contraindications → 2차 (MED-007 DUR 2차. 1차 성분명 검색은 drugs.ingredient_name)
 //         - flower_types → 3차 (1차는 기본 꽃 1종 = flower_type_id NULL)
 //         - user_settings + notification_settings 통합 (회원당 1행인 설정 테이블 하나로)
 //         - dose_time_adjustments 삭제 → dose_schedules.adjust_warning + 진료 준비 질문(visit_questions)이 이력 역할
@@ -16,6 +16,10 @@
 //         - partner_links 신규 (NOTI-006)
 //         - notifications 를 발송 이력 겸 알림 센터로 확장 (카카오톡·웹 푸시, 본인·파트너)
 //         - users.signup_type 추가: 파트너는 간단 절차로 가입 (3차)
+//       + 11/24 결정: 파트너 알림 '약 이름 함께 보내기' 옵션 제외 → user_settings.partner_include_drug_names 삭제
+//       + 11/24 추가: drugs.item_name_norm(정규화 이름, pg_trgm GIN), drugs.data_source CHECK(easy_drug / permit),
+//         medical_documents.processing_started_at (채민 요청)
+//       + 11/25 추가: medical_documents.fail_reason (채민 요청)
 // dbdiagram.io 에 그대로 붙여넣어 사용 / DB: PostgreSQL 가정
 //
 // 헤더 색상 = 구현 단계 (결정 사항 5-1)
@@ -52,7 +56,7 @@ Enum consent_type {
   terms
   privacy
   sensitive_health [note: '민감정보(건강정보) 별도 동의']
-  kakao_message [note: "[2차] 카카오톡 메시지 전송(talk_message) 선택 동의. 로그인 때 또는 '카카오톡 알림 켜기'에서 받음 (NOTI-005)"]
+  kakao_message [note: "[2차] 카카오톡 메시지 전송(talk_message) 선택 동의. 1차 로그인 때는 받지 않고, 2차 '카카오톡 알림 켜기'에서 추가 동의로 받음 (NOTI-005, 11/22)"]
   partner_share [note: '[3차] 회원: 파트너에게 미복용 알림 보내기 동의 (NOTI-006)']
   partner_receive [note: '[3차] 파트너: 미복용 알림 받기 동의 (NOTI-006)']
 }
@@ -319,7 +323,6 @@ Table user_settings [headercolor: #F97316] {
   lead_minutes int [not null, default: 0, note: '[3차] 0 = 정각, 10 = 10분 전 (NOTI-001)']
   reminder_interval_minutes int [note: '[3차] 웹 푸시 미복용 재알림 간격 (팀 합의)']
   remind_prescription_end boolean [not null, default: true, note: '[3차] NOTI-003']
-  partner_include_drug_names boolean [not null, default: false, note: "[3차] 파트너 알림에 약 이름 함께 보내기 (NOTI-006)"]
   updated_at timestamptz [not null, default: `now()`]
   Note: "회원당 1행인 설정 모음. 마이페이지 '화면 설정' 탭 + '알림 설정' 탭 (기존 notification_settings 통합, 11/20). 약별 ON/OFF는 prescription_items.notify_enabled"
 }
@@ -334,7 +337,7 @@ Table health_profiles [headercolor: #3B82F6] {
   drinks_per_week int
   exercise_per_week int
   updated_at timestamptz [not null, default: `now()`]
-  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 가이드 생성 전 입력 유도 팝업'
+  Note: 'USER-010. 회원당 1개(1:1). 행이 없으면 처방 저장 전 입력 유도 팝업 (가이드가 저장 즉시 만들어지므로). 나중에 입력해도 이미 만든 가이드는 그대로'
 }
 
 Table user_conditions [headercolor: #3B82F6] {
@@ -370,12 +373,14 @@ Table daily_routines [headercolor: #F97316] {
 Table medical_documents [headercolor: #3B82F6] {
   id bigint [pk, increment]
   user_id bigint [not null, ref: > users.id]
-  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 내용이 달라 보이면 '처방전이 아닌 것 같아요' 경고"]
+  doc_type document_type [not null, note: "업로드 시 회원이 선택 (처방전 / 약봉투). 따로 경고하지 않고, 약 줄을 찾지 못하면(fail_reason no_drug_found) 문서 종류를 다시 고르게 함 (11/23)"]
   status document_status [not null, default: 'uploaded']
   hospital_name varchar(100)
   issued_date date [note: '처방일 / 조제일. 복용 시작일 기본값']
   parsed_result text [note: "확인 화면용 구조화 결과 JSON(신뢰도, 원문 줄, 페이지 번호, 먹는 약 여부 is_oral 포함. '먹는 약 아님' 줄은 확정 시 저장하지 않음). 이름·주민등록번호·환자번호·면허번호·연락처 마스킹 후 JSON 문자열을 암호화해 저장(암호화하면 jsonb 질의가 안 되므로 text). 확정 시 처방 테이블로 옮긴 뒤 NULL로 비우고, 3시간 만료 시에도 NULL (NFR-004)"]
   image_delete_due_at timestamptz [not null, note: '업로드 + 3시간(환경 변수로 관리). 그 전에 확정되면 확정 시 삭제 (6-10)']
+  processing_started_at timestamptz [note: 'OCR 처리 시작 시각. 문서 종류를 다시 고른 뒤 90초 넘게 안 끝나면 실패 처리하는 기준(채민 요청)']
+  fail_reason varchar(30) [note: 'ocr_failed일 때만 값: ocr_error / no_text / no_drug_found / structure_error / timeout. 나머지 상태는 NULL (채민 요청, 11/25)']
   created_at timestamptz [not null, default: `now()`]
   confirmed_at timestamptz
   Note: 'OCR-001~005. 한 번 업로드 = 처방 한 건 (병원명·처방일이 다르면 따로 등록 안내). 질병분류기호는 저장하지 않음'
@@ -384,11 +389,11 @@ Table medical_documents [headercolor: #3B82F6] {
 Table document_pages [headercolor: #3B82F6] {
   id bigint [pk, increment]
   document_id bigint [not null, ref: > medical_documents.id]
-  page_no int [not null, note: '문서 전체 기준 순서. 확인 화면에서 바꿀 수 있음']
+  page_no int [not null, note: '문서 전체 기준 순서. 업로드 화면에서 정한 파일 순서 그대로 (확인 화면에서는 바꾸지 않음, 11/23)']
   original_name varchar(255) [note: '업로드한 파일 이름']
   mime_type varchar(50) [not null, note: 'image/jpeg, image/png, application/pdf']
   file_size_bytes int [not null, note: '파일 1개당 10MB 이하, 문서 합계 30MB 이하 (6-1, 6-3). PDF는 페이지마다 같은 값']
-  file_hash char(64) [not null, note: "원본 파일 SHA-256. 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). PDF는 페이지마다 같은 값"]
+  file_hash char(64) [not null, note: "원본 파일 SHA-256. PDF는 페이지마다 같은 값. [2차] 같은 파일 재업로드 감지 ('이미 올린 사진이에요'). 1차는 값만 저장"]
   file_path varchar(500) [not null, note: '원본 파일 경로. PDF는 페이지마다 같은 경로']
   source_page_no int [not null, default: 1, note: '원본 파일 안의 페이지 (PDF), 이미지는 1']
   image_path varchar(500) [not null, note: 'OCR·원본 보기용 페이지 이미지 (PDF는 변환본, 6-8·6-9)']
@@ -409,8 +414,9 @@ Table document_pages [headercolor: #3B82F6] {
 Table drugs [headercolor: #3B82F6] {
   id bigint [pk, increment]
   item_seq varchar(20) [not null, unique, note: '식약처 품목기준코드']
-  item_name varchar(200) [not null, note: '상품명']
-  ingredient_name varchar(300) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). DUR·중복 검사와 성분 검색은 drug_ingredients 사용']
+  item_name varchar(500) [not null, note: '상품명']
+  item_name_norm varchar(500) [not null, note: "normalize_drug_name()으로 정규화한 이름. 적재할 때 함께 채움. 이름 유사도 검색(pg_trgm)용 GIN 인덱스 (채민 요청, 11/24)"]
+  ingredient_name varchar(500) [note: '화면 표시용 성분명 문자열 (예: 다이아벡스(메트포르민)). 1차 성분명 검색(GET /drugs?q=)에도 사용. 2차부터 DUR·같은 성분 중복 검사는 drug_ingredients 사용']
   company varchar(100)
   efficacy text
   usage_text text
@@ -419,10 +425,14 @@ Table drugs [headercolor: #3B82F6] {
   storage_method text
   is_oral boolean [note: "먹는 약 여부 (제형으로 판단). false면 '먹는 약 아님'으로 표시하고 등록 안 함. 알 수 없으면 NULL → 회원 확인 (OCR-003·004)"]
   image_url varchar(500)
-  data_fetched_at date [not null, note: "데이터 기준일 - 상세 화면 하단 표시 (MED-002)"]
+  data_fetched_at date [not null, note: "데이터를 받아 온 날(우리 기준일). 약 상세 하단 '○○ 기준' 표시에 씀 (MED-002, 11/23 유정)"]
+  data_source varchar(20) [not null, note: "출처: easy_drug(e약은요) / permit(의약품 허가정보). e약은요에 없는 처방약은 허가정보로 보충 → 약 상세 출처 이름 표시에 씀 (11/23 유정). CHECK로 easy_drug / permit 만 허용 (11/24)"]
+  source_updated_at date [note: "식약처 쪽 마지막 수정일(e약은요 updateDe 등). 화면에 쓰지 않고, 다시 받을 때 바뀐 약만 골라 갱신하는 데 씀 (11/23 유정)"]
+  is_otc boolean [note: "일반의약품 여부(허가정보의 전문/일반 구분). 모르면 NULL (11/23 유정)"]
 
   indexes {
     item_name
+    item_name_norm [note: 'GIN (pg_trgm gin_trgm_ops). DBML은 gin 타입을 표기하지 못해 마이그레이션 SQL에서 생성']
     ingredient_name
   }
   Note: 'e약은요 / 의약품 허가정보. OCR-005 매칭 후보·MED-001 약 검색은 같은 API(GET /drugs?q=) 사용, MED-002(약 상세)'
@@ -440,7 +450,7 @@ Table drug_ingredients [headercolor: #F97316] {
     ingredient_code
     ingredient_name
   }
-  Note: '[2차] 약 1개 = 성분 1~N개 (복합제). MED-007(DUR)·MED-001(성분 검색)이 2차로 내려가 같이 2차. 1차 화면 표시는 drugs.ingredient_name'
+  Note: '[2차] 약 1개 = 성분 1~N개 (복합제). MED-007(DUR)이 2차라 같이 2차. 1차 화면 표시·성분명 검색은 drugs.ingredient_name'
 }
 
 Table dur_contraindications [headercolor: #F97316] {
@@ -464,7 +474,7 @@ Table rag_documents [headercolor: #3B82F6] {
   drug_id bigint [ref: >? drugs.id]
   chunk_count int [not null, default: 0]
   created_at timestamptz [not null, default: `now()`]
-  Note: 'GUIDE-003. 임베딩·청크는 벡터 DB에 저장하고 metadata 에 rag_documents.id 기록'
+  Note: 'GUIDE-003. 임베딩·청크는 PostgreSQL pgvector에 저장 (11/23 결정, 임베딩 모델 text-embedding-3-small). 청크·임베딩 테이블은 유정이 추가 예정(11/27), 청크마다 rag_documents.id 연결'
 }
 
 // ---------------------------------------------------------------------
@@ -488,7 +498,7 @@ Table prescription_items [headercolor: #3B82F6] {
   id bigint [pk, increment]
   prescription_id bigint [not null, ref: > prescriptions.id]
   drug_id bigint [ref: >? drugs.id, note: "회원이 고르지 않거나 매칭 실패면 NULL → '이 약은 안내 정보가 없습니다'"]
-  drug_name_raw varchar(200) [not null, note: '처방전에 적힌 약품명']
+  drug_name_raw varchar(500) [not null, note: '처방전에 적힌 약품명']
   source_text varchar(500) [note: '처방전 원문 줄. 확인 화면에서 변환 결과와 나란히 표시. parsed_result와 같은 마스킹 적용']
   dose_text varchar(50) [not null, note: "처방전 표기 그대로 ('1정', '0.5정', '1포')"]
   dose_amount decimal(8,3) [note: '숫자 용량. 숫자 없으면 NULL']
@@ -496,7 +506,7 @@ Table prescription_items [headercolor: #3B82F6] {
   cycle_type cycle_type [note: "[2차] MED-025. 1차는 모두 daily로 저장. 2차에서 못 읽으면 NULL = '투여 주기 확인 필요' (임의로 daily 채우지 않음)"]
   cycle_weekdays varchar(30) [note: "weekly_days 일 때 'MON,THU'"]
   cycle_interval_weeks int [note: 'every_n_weeks 일 때 n']
-  times_per_day int [not null, note: '1~4. 투여 주기가 매일이 아니면 복용하는 날의 횟수']
+  times_per_day int [note: '1~4. 투여 주기가 매일이 아니면 복용하는 날의 횟수. 필요시 약만 NULL 가능 (처방전에 필요시만 적힌 경우, 직접 입력은 하루 최대 횟수) (API 4-8 E10, 11/23)']
   start_date date [not null, note: '기본값 처방일, 없으면 오늘. 주기 계산 기준일(첫 투여일)']
   total_days int [not null, note: '1~365']
   continued_from_item_id bigint [ref: >? prescription_items.id, note: "[2차] '이어서 먹는 약'이면 기존 약 (MED-007)"]
@@ -550,7 +560,7 @@ Table intake_logs [headercolor: #3B82F6] {
   log_date date [not null, note: '일과 기준 하루 (기상 ~ 다음 기상 전), KST']
   scheduled_time time [note: '그날 기준 복용 시각 스냅샷. 필요시 약은 NULL']
   dose_text varchar(50) [not null, note: '그날 용량 스냅샷']
-  is_as_needed boolean [not null, default: false, note: "'필요할 때 복용' 영역에서 체크"]
+  is_as_needed boolean [not null, default: false, note: "[2차] 필요시 약 체크 기록용. 1차는 '필요할 때 복용' 목록만 보여주고 기록하지 않음. 필요시 기록은 scheduled_time = NULL이라 아래 unique에 걸리지 않아 하루 여러 번 저장 가능"]
   status intake_status [not null, default: 'pending']
   taken_at timestamptz
   created_at timestamptz [not null, default: `now()`]
@@ -636,7 +646,7 @@ Table guide_attempts [headercolor: #F97316] {
   prompt_version_id bigint [ref: >? prompt_versions.id]
   verify_ms int [note: 'NFR-014 검증 5초 목표']
   created_at timestamptz [not null, default: `now()`]
-  Note: 'VERI-006 검증 결과 저장·통계 (2차, 6-5). 1차는 재시도 횟수를 메모리에서만 셈. 자동 재생성+오류 재시도 합쳐 최대 2회'
+  Note: 'VERI-006 검증 결과 저장·통계 (2차, 6-5). 1차는 자동 재시도·재생성 없이 [다시 시도] 버튼만 있고 검증 결과는 서버 로그에만 남김. 2차: 자동 재생성+오류 재시도 합쳐 최대 2회'
 }
 
 // ---------------------------------------------------------------------
@@ -661,7 +671,8 @@ Table chat_messages [headercolor: #3B82F6] {
   content text [not null, note: '최대 500자(질문). 암호화']
   is_recommended_question boolean [not null, default: false, note: '추천 질문 버튼 - 1회로 셈']
   counts_toward_quota boolean [not null, default: true, note: '[2차] 응급·범위 밖·실패는 false (하루 50회)']
-  verify_status chat_verify_status [not null, default: 'not_needed', note: '[2차] VERI-007']
+  check_result jsonb [note: "check_full() 반환값 그대로 저장. 예: {passed: false, types: ['forbidden'], rules_version: 'verify_rules_v1'}. 검사 안 함·오류면 NULL, 회원 질문 행은 항상 NULL. 1차는 기록만 (API 4-8 E11, 6-4)"]
+  verify_status chat_verify_status [not null, default: 'not_needed', note: '[2차] VERI-007 정정 안내. 1차는 check_result만 씀 (2차에 다시 논의)']
   correction_note text
   prompt_version_id bigint [ref: >? prompt_versions.id]
   created_at timestamptz [not null, default: `now()`]
