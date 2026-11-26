@@ -39,7 +39,7 @@
 
 | 구분 | 기술 |
 | --- | --- |
-| Frontend | (작성 예정) |
+| Frontend | React 19, Vite, TypeScript, Tailwind CSS v4, React Router |
 | Backend | FastAPI, Tortoise ORM, Pydantic |
 | AI / LLM | (작성 예정) |
 | Database | PostgreSQL (pgvector), Redis |
@@ -70,10 +70,14 @@ API 서버(FastAPI)와 AI 작업을 처리하는 워커(AI Worker)를 분리한 
 │   ├── core/           # 서버 설정 (pydantic-settings), DB 설정, JWT, Validator 등 핵심 기능
 │   ├── dtos/           # 데이터 전송 객체 (Pydantic models)
 │   ├── models/         # DB 테이블 정의
+│   ├── dependencies/   # FastAPI 의존성 (로그인 회원 꺼내기 등)
+│   ├── repositories/   # DB 조회 코드
 │   ├── services/       # 비즈니스 로직
+│   ├── tests/          # 테스트. 기능별 폴더(auth, scan, drugs 등)
 │   └── main.py         # FastAPI 애플리케이션 진입점
 ├── docs/               # 회의록, 팀 규칙 등 문서
 ├── envs/               # 환경 변수 설정 파일 (.env)
+├── frontend/           # React(Vite) 프론트엔드. 폴더 규칙은 frontend/README.md 참고
 ├── infra/              # 인프라 설정 관련 디렉터리
 │   ├── docker/         # Docker Compose 설정 (운영용)
 │   └── nginx/          # Nginx 설정 파일 (리버스 프록시)
@@ -102,11 +106,11 @@ cd ~/PycharmProjects/da-ol
 ### 3. 의존성 설치
 
 ```bash
-# 전체 의존성 설치 (가상환경 .venv 자동 생성)
-uv sync
+# 전체 의존성 설치 (가상환경 .venv 자동 생성). 테스트까지 돌리려면 이걸로 설치하세요
+uv sync --all-groups
 
 # 특정 그룹만 설치하려는 경우
-uv sync --group app  # API 서버용
+uv sync --group app  # API 서버용 (httpx 등. 백엔드 테스트에 필요)
 uv sync --group ai   # AI 워커용
 ```
 
@@ -160,8 +164,10 @@ PR을 올리기 전에 아래 스크립트로 확인해주세요.
 ## 📝 개발 가이드
 
 - **API 추가**: `app/apis/v1/` 아래에 라우터 파일을 만들고 `app/apis/v1/__init__.py`에 등록합니다.
-- **DB 모델 추가**: `app/models/`에 Tortoise 모델을 정의하고 `app/db/databases.py`의 `MODELS` 리스트에 추가합니다.
+- **DB 모델 추가**: `app/models/`에 Tortoise 모델을 정의하고 `app/core/db/databases.py`의 `MODELS` 리스트에 추가합니다.
 - **AI 로직 추가**: `ai_worker/tasks/`에 처리 로직을 작성하고 `ai_worker/main.py`에서 호출하도록 구성합니다.
+- **테스트 추가**: `app/tests/기능이름/` 안에 둡니다. 같은 기능 테스트끼리 쓰는 가짜 객체는 그 폴더의 `fakes.py`에 둡니다(예: `app/tests/scan/fakes.py`).
+- **기능 이름**: `auth`, `user`, `scan`(처방 사진 인식), `prescription`, `guide`, `chat`, `drugs`. 백엔드 테스트 폴더와 프론트 `pages` 슬라이스 이름을 이 목록에 맞춥니다.
 
 ---
 
@@ -210,5 +216,5 @@ main        배포용 (직접 push 금지)
 
 - [회의록](docs/meetings/)
 - [팀 규칙](docs/team_rules.md)
-- 요구사항 정의서 (작성 예정)
-- API 명세서 (작성 예정)
+- [요구사항 정의서](https://docs.google.com/spreadsheets/d/1RsXfK6RuYae77XL6NZB8Tsw4YlFMPLMS1o09t6q2Pi8/edit?gid=1563218030#gid=1563218030)
+- [API 명세서](docs/planning/daol_API_명세서.md)
