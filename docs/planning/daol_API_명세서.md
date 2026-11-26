@@ -60,10 +60,27 @@ API가 아닌 작업 분담은 3-1에 정리했습니다.
 | `UNAUTHORIZED` | 401 | 토큰이 없거나 만료됨 → 프론트가 재발급을 시도합니다 |
 | `PROFILE_REQUIRED` | 403 | 추가 정보 입력 또는 필수 약관 동의 전 회원이 다른 API를 호출함 → 추가 정보 입력 화면으로 보냅니다. 예외 API: `/auth/*`, `GET /users/me`, `POST /users/me/profile` |
 | `NOT_FOUND` | 404 | 대상이 없거나 다른 회원의 데이터 |
-| `VALIDATION_ERROR` | 422 | 입력값 오류. 항목별 사유는 `fields`에 `{ "필드 경로": "사유 문장" }` 형식으로 담을 수 있습니다(예: `{"drugs[0].total_days": "총 일수를 입력해 주세요"}`) |
+| `VALIDATION_ERROR` | 422 | 입력값 오류. 대표 `message`는 "입력한 내용을 확인해 주세요"이고, 항목별 사유는 `fields`에 `{ "필드 경로": "사유 문장" }` 형식으로 담습니다(아래 예시) |
 | `RATE_LIMITED` | 429 | 호출 제한 초과(OCR·가이드·챗봇) |
 | `EXTERNAL_API_ERROR` | 502 | CLOVA OCR·LLM·공공데이터 호출 실패 |
 | `INTERNAL_ERROR` | 500 | 그 외 서버 오류 |
+
+`VALIDATION_ERROR` 예시입니다. 요청 모양이 틀린 경우(필수 칸 없음, 글자 수, 형식)는 서버 공용 핸들러가 이 모양으로 바꿔 내려줍니다(`app/core/exceptions.py`, #50).
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "입력한 내용을 확인해 주세요",
+  "fields": {
+    "birth_date": "필수 항목이에요",
+    "drugs[0].dose_per_time": "형식이 맞지 않아요"
+  }
+}
+```
+
+- 필드 경로: 요청 본문 기준 칸 이름을 점으로 잇고, 목록 순번은 대괄호로 씁니다(예: `drugs[1].dosage.doses[0].timing`). 순번은 보낸 목록의 순서(0부터)입니다.
+- 사유 문장: 서버가 한국어로 보내고 프론트는 그대로 띄웁니다. 한 칸에 사유가 여러 개면 첫 번째만 보냅니다.
+- 에러 코드는 서버 코드에서 `ErrorCode` Enum으로 씁니다(글자로 직접 쓰지 않음).
 
 영역별 에러 코드는 각 섹션에서 추가합니다(예: `DOCUMENT_EXPIRED`).
 
@@ -309,6 +326,7 @@ API 개수만으로는 보이지 않는 작업을 함께 나눕니다.
   - 쓴 리프레시 토큰은 바로 `revoked_at`을 채웁니다. 이미 무효화된 토큰이 다시 들어오면 탈취로 보고 그 회원의 리프레시 토큰을 모두 무효화합니다.
   - 프론트 흐름: `UNAUTHORIZED`(401) → 재발급 1회 → 성공하면 원래 요청을 다시 보냅니다. 여러 요청이 동시에 401을 받으면 재발급은 한 번만 부르고 나머지는 그 결과를 기다리게 해 주세요. 회전 방식이라 두 번 부르면 두 번째가 실패합니다. 프론트가 재발급 요청을 하나로 묶어(single-flight) 처리합니다(설아님 확인, 11/23)
   - 재발급이 `REFRESH_TOKEN_EXPIRED`이면 다시 재발급하지 않습니다(무한 반복 방지).
+  - 재발급할 때마다 만료일도 새로 14일로 잡습니다. 매일 여는 복약 앱이라, 14일 안에 한 번이라도 열면 로그인이 계속 유지됩니다(11/26 설아님 리뷰).
   - `users.status = withdrawn`인 회원은 `REFRESH_TOKEN_EXPIRED`입니다.
 
 ### [POST] /api/v1/auth/logout
@@ -2422,3 +2440,4 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
 | 2026-11-26 | 유정 | 출처 칸 맞춤(ERD #41, 약 정보는 drugs 직접 조회): 7-1·7-6 예시의 약 출처 `rag_document_id` → `drug_id`, 7-1 비고에 출처 규칙 추가, 1-3 SSE 표 `sources` 예시와 6장 근거 대조 문장도 같게 맞춤(설아님 리뷰) |
 | 2026-11-26 | 채민 | 6-2 확인 표시 규칙 추가: 정·캡슐·포 1회 용량 0.25 미만이면 `needs_check: true`(OCR·고친 용량), `is_oral: false` 줄은 `dosage.needs_confirm: false` |
+| 2026-11-26 | 민정 | 1-1 `VALIDATION_ERROR` 응답 예시·필드 경로(대괄호)·대표 문구 추가, 4-1 `/auth/refresh` 비고에 재발급 때 만료일 14일 갱신 추가(#46 리뷰, #50) |
