@@ -30,6 +30,7 @@ from app.dtos.scan import (
     Cycle,
     DocType,
     Dosage,
+    DosePerTime,
     DosePerTimeField,
     DrugMatch,
     FieldValue,
@@ -70,17 +71,11 @@ from app.models.prescriptions import (
     PrescriptionItem,
 )
 from app.models.users import User
-from app.services.text_rules import normalize_drug_name
+from app.services.text_rules import normalize_drug_name, parse_dose_text
 
 SEED_DATA_PATH = Path(__file__).resolve().parent / "seed_data.json"
 
-# 기본 식사·취침 시각 기준 (추후 recalculate_schedule() 머지 시 해당 함수로 교체)
-DEFAULT_MEAL_TIMES: dict[str, time] = {
-    "breakfast": time(8, 0),
-    "lunch": time(12, 30),
-    "dinner": time(18, 30),
-    "bedtime": time(23, 0),
-}
+# 기본 식사·취침 시각 기준: 08:00 / 12:30 / 18:30 / 23:00 (추후 recalculate_schedule() 머지 시 연동)
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -137,12 +132,10 @@ def _build_ocr_done_parsed_result(
     prescribed_date: date,
     resolved_drugs: list[Drug | None],
 ) -> str:
-    """GET /scans/{scan_id} (명세서 6-2 ScanOcrDoneResponse) 형식으로 parsed_result 생성."""
+    """GET /scans/{scan_id} 조립에 필요한 parsed_result 6개 핵심 필드만 직렬화한다."""
     scan_drugs: list[ScanDrug] = []
     for idx, (item, drug) in enumerate(zip(case["items"], resolved_drugs, strict=True), start=1):
-        dose_amount_raw = item.get("dose_amount")
-        parsed_amount = float(dose_amount_raw) if dose_amount_raw is not None else None
-        is_dose_parsed = parsed_amount is not None
+        parsed_dose = DosePerTime.model_validate(parse_dose_text(item["dose_text"]))
 
         scan_drugs.append(
             ScanDrug(
@@ -161,13 +154,13 @@ def _build_ocr_done_parsed_result(
                 ),
                 is_oral=item.get("is_oral"),
                 dose_per_time=DosePerTimeField(
-                    text=item["dose_text"],
-                    min=parsed_amount,
-                    max=parsed_amount,
-                    unit=item.get("dose_unit") if is_dose_parsed else None,
-                    parsed=is_dose_parsed,
-                    confidence=0.99 if is_dose_parsed else 0.95,
-                    needs_check=not is_dose_parsed,
+                    text=parsed_dose.text,
+                    min=parsed_dose.min,
+                    max=parsed_dose.max,
+                    unit=parsed_dose.unit,
+                    parsed=parsed_dose.parsed,
+                    confidence=0.99 if parsed_dose.parsed else 0.95,
+                    needs_check=not parsed_dose.parsed,
                     edited=False,
                 ),
                 times_per_day=FieldValue[int | None](
@@ -197,7 +190,7 @@ def _build_ocr_done_parsed_result(
         doc_type=DocType(doc_type.value),
         image_delete_due_at=delete_due_at,
         pages=[ScanPage(page_no=1)],
-        masked=False,
+        masked=True,
         prompt_version="parse_document_v1",
         edited=False,
         hospital_name=FieldValue[str | None](
@@ -212,7 +205,20 @@ def _build_ocr_done_parsed_result(
         ),
         drugs=scan_drugs,
     )
-    return response.model_dump_json()
+    return json.dumps(
+        response.model_dump(
+            mode="json",
+            include={
+                "masked",
+                "prompt_version",
+                "edited",
+                "hospital_name",
+                "prescribed_date",
+                "drugs",
+            },
+        ),
+        ensure_ascii=False,
+    )
 
 
 async def run_seed() -> None:
@@ -271,7 +277,7 @@ async def run_seed() -> None:
                 confirmed_at=now_utc if is_confirmed else None,
             )
 
-            # 비경구약(is_oral=false) 테스트 케이스는 6-2 ScanOcrDoneResponse 모양으로 parsed_result 저장
+            # 비경구약(is_oral=false) 테스트 케이스는 get_scan() 조립용 6개 키만 parsed_result에 저장
             if not is_confirmed:
                 resolved_drugs = [await _resolve_drug(item) for item in case["items"]]
                 doc.parsed_result = _build_ocr_done_parsed_result(
