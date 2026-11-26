@@ -156,22 +156,46 @@ def build_row(detail: dict, easy: dict | None, image_url: str | None, fetched_da
     return row
 
 
+def pick_latest_pages(detail_dir: Path) -> tuple[dict, int]:
+    """품목기준코드마다 변경일(CHANGE_DATE)이 가장 최근인 줄이 든 페이지 파일 이름을 고릅니다.
+    같은 약이 두 페이지에 들어간 경우(받는 동안 페이지가 밀림)를 거르기 위해서예요."""
+    best = {}
+    seen = 0
+    for page in sorted(detail_dir.glob("page_*.json")):
+        for detail in load_json(page):
+            if detail.get("CANCEL_NAME") != "정상":
+                continue
+            seen += 1
+            seq = detail["ITEM_SEQ"]
+            changed = detail.get("CHANGE_DATE") or ""
+            if seq not in best or changed > best[seq][0]:
+                best[seq] = (changed, page.name)
+    return best, seen
+
+
 def main() -> int:
     fetched_date = to_date(FETCHED)
     easy_by_seq = latest_easy_by_seq(load_json(RAW_DIR / f"easy_drug_{FETCHED}.json"))
-    image_by_seq = {
-        r["ITEM_SEQ"]: r.get("BIG_PRDT_IMG_URL") or None for r in load_json(RAW_DIR / f"permit_{FETCHED}.json")
-    }
+    permit_list = load_json(RAW_DIR / f"permit_{FETCHED}.json")
+    image_by_seq = {r["ITEM_SEQ"]: r.get("BIG_PRDT_IMG_URL") or None for r in permit_list}
+    listed = {r["ITEM_SEQ"] for r in permit_list if r.get("CANCEL_NAME") == "정상"}
+
+    detail_dir = RAW_DIR / f"permit_detail_{FETCHED}"
+    best_page, seen = pick_latest_pages(detail_dir)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"drugs_rows_{FETCHED}.jsonl"
     counts = {"rows": 0, "easy_drug": 0, "permit": 0, "oral_true": 0, "oral_false": 0, "oral_none": 0}
+    written = set()
     with out.open("w", encoding="utf-8") as f:
-        for page in sorted((RAW_DIR / f"permit_detail_{FETCHED}").glob("page_*.json")):
+        for page in sorted(detail_dir.glob("page_*.json")):
             for detail in load_json(page):
                 if detail.get("CANCEL_NAME") != "정상":
                     continue
                 seq = detail["ITEM_SEQ"]
+                if seq in written or best_page[seq][1] != page.name:
+                    continue
+                written.add(seq)
                 row = build_row(detail, easy_by_seq.get(seq), image_by_seq.get(seq), fetched_date)
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 counts["rows"] += 1
@@ -180,6 +204,8 @@ def main() -> int:
 
     print(f"저장 완료: {out}")
     print(counts)
+    print(f"중복으로 거른 줄: {seen - len(best_page)}개")
+    print(f"목록에는 있는데 상세정보에 없는 약: {len(listed - best_page.keys())}개")
     return 0
 
 

@@ -47,6 +47,18 @@ def get_items(body: dict) -> list:
     return items
 
 
+def page_problem(data: dict, page_no: int, last_page: int, total: int) -> str | None:
+    """받은 페이지가 정상인지 확인합니다. 문제가 있으면 이유를, 없으면 None을 돌려줍니다."""
+    code = data.get("header", {}).get("resultCode")
+    if code != "00":
+        return f"결과 코드가 정상(00)이 아니에요: {code}"
+    expected = NUM_OF_ROWS if page_no < last_page else total - NUM_OF_ROWS * (last_page - 1)
+    got = len(get_items(data.get("body", {})))
+    if got != expected:
+        return f"{expected}건이어야 하는데 {got}건이에요"
+    return None
+
+
 def main() -> int:
     key = get_service_key()
     first = fetch_page(key, 1)
@@ -69,8 +81,15 @@ def main() -> int:
             print(f"{page_no}페이지에서 멈췄어요: {e}")
             print("다시 실행하면 이미 받은 페이지는 건너뛰고 이어서 받아요.")
             return 1
+        problem = page_problem(data, page_no, last_page, total)
+        if problem:
+            print(f"{page_no}페이지를 저장하지 않고 멈췄어요: {problem}")
+            print("잠시 뒤 다시 실행하면 이 페이지부터 이어서 받아요.")
+            return 1
         items = get_items(data["body"])
-        out.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+        tmp = out.with_suffix(".tmp")
+        tmp.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(out)
         print(f"{page_no}/{last_page}페이지 저장({len(items)}건)")
 
     files = sorted(SAVE_DIR.glob("page_*.json"))
