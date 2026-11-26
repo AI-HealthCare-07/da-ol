@@ -1,8 +1,7 @@
-import { api } from "./client";
-import type { HomeResponse, IntakePatchResponse, IntakeStatus } from "./types";
-import { mockHome } from "./mock";
-
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
+import { api } from "@/shared/api/client";
+import { mockHome } from "@/shared/api/mock";
+import type { HomeResponse, IntakePatchResponse, IntakeStatus } from "@/shared/api/types";
+import { USE_MOCK } from "@/shared/config/env";
 
 export function getHome(date?: string): Promise<HomeResponse> {
   if (USE_MOCK) return Promise.resolve(structuredClone(mockHome));

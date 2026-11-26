@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router";
-import { useAuth } from "./AuthProvider";
+import { useAuth } from "@/app/providers/AuthProvider";
 
 function Splash() {
   return <div className="flex min-h-screen items-center justify-center text-ink-sub">불러오는 중…</div>;

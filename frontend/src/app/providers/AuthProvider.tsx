@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { refreshAccessToken, setAccessToken, setAuthHandlers } from "../api/client";
-import { getMe, logout as logoutApi } from "../api/auth";
-import type { Me } from "../api/types";
-import { USE_MOCK } from "../api/home";
+import { refreshAccessToken, setAccessToken, setAuthHandlers } from "@/shared/api/client";
+import { getMe, logout as logoutApi } from "@/shared/api/auth";
+import type { Me } from "@/shared/api/types";
+import { USE_MOCK } from "@/shared/config/env";
 
 type Status = "loading" | "guest" | "signed-in";
 

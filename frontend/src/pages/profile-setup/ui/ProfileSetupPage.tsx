@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { saveProfile, type ConsentType } from "../api/auth";
-import { ApiError } from "../api/client";
-import { USE_MOCK } from "../api/home";
-import { useAuth } from "../auth/AuthProvider";
-import { ageOn, isValidDate, todayKST } from "../lib/date";
+import { saveProfile, type ConsentType } from "@/shared/api/auth";
+import { ApiError } from "@/shared/api/client";
+import { USE_MOCK } from "@/shared/config/env";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { ageOn, isValidDate, todayKST } from "@/shared/lib/date";
 
 // A-1-2 추가 정보 입력 + 약관 동의 (REQ-USER-002, 명세 4장 POST /users/me/profile)
 // - 이름·생년월일·성별은 나중에 바꿀 수 없어서(REQ-USER-009) 저장 전에 한 번 더 보여 줍니다.

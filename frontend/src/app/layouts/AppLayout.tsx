@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useMatches, useNavigate } from "react-router";
-import { useAuth } from "../../auth/AuthProvider";
+import { useAuth } from "@/app/providers/AuthProvider";
 
 interface RouteHandle {
   tab?: "home" | "meds" | "guides" | "my";

@@ -1,11 +1,10 @@
 import { createBrowserRouter } from "react-router";
-import { GuestOnly, RequireAuth, RequireIncompleteProfile } from "../auth/guards";
-import AppLayout from "../components/layout/AppLayout";
-import LoginPage from "../pages/LoginPage";
-import KakaoCallbackPage from "../pages/KakaoCallbackPage";
-import ProfileSetupPage from "../pages/ProfileSetupPage";
-import HomePage from "../pages/HomePage";
-import Placeholder from "../pages/Placeholder";
+import { GuestOnly, RequireAuth, RequireIncompleteProfile } from "@/app/guards";
+import AppLayout from "@/app/layouts/AppLayout";
+import { HomePage } from "@/pages/home";
+import { KakaoCallbackPage, LoginPage } from "@/pages/login";
+import { ProfileSetupPage } from "@/pages/profile-setup";
+import Placeholder from "@/shared/ui/Placeholder";
 
 // 화면 번호는 와이어프레임(docs/planning/daol_wireframe.md) 기준
 export const router = createBrowserRouter([

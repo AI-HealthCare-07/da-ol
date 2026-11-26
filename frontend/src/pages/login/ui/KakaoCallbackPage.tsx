@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { kakaoLogin } from "../api/auth";
-import { ApiError } from "../api/client";
-import { useAuth } from "../auth/AuthProvider";
-import { checkKakaoState } from "../lib/kakao";
+import { kakaoLogin } from "@/shared/api/auth";
+import { ApiError } from "@/shared/api/client";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { checkKakaoState } from "@/shared/lib/kakao";
 
 // 카카오가 돌려보낸 code로 로그인합니다.
 // 인가 코드는 한 번만 쓸 수 있어서, 개발 모드(StrictMode)에서 두 번 불리지 않게 막습니다.

@@ -1,9 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 // three.js가 커서 홈에서만 따로 불러옵니다
-const PillBox3D = lazy(() => import("../components/home/PillBox3D"));
-import { getHome, patchIntake, patchIntakesInOrder, USE_MOCK } from "../api/home";
-import type { HomeResponse, HomeSlot } from "../api/types";
+const PillBox3D = lazy(() => import("./PillBox3D"));
+import type { HomeResponse, HomeSlot } from "@/shared/api/types";
+import { USE_MOCK } from "@/shared/config/env";
+import { getHome, patchIntake, patchIntakesInOrder } from "../api/home";
 
 // A-2 홈: 회전 약통(3D) + 회차 버튼 + 지금 칸 카드 + 그 회차 약 목록
 // 저장은 약 하나씩(PATCH /intakes/{intake_id}), 칸은 안의 약을 다 먹어야 완료 → 통이 돌아감

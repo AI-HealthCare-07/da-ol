@@ -1,5 +1,5 @@
 import { useLocation } from "react-router";
-import { goKakaoLogin } from "../lib/kakao";
+import { goKakaoLogin } from "@/shared/lib/kakao";
 
 // A-1-1 로그인. 카카오만 제공합니다.
 export default function LoginPage() {
