@@ -1671,6 +1671,10 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - Request Body: 아래 두 가지 중 하나만 보냅니다. 둘을 함께 보내면 `VALIDATION_ERROR`입니다.
 
   ① 고친 값 저장 → `200`. 바꾼 칸만 보냅니다. 약 줄은 `line_no`로 가리키고, 새 줄은 `line_no` 없이, 지울 줄은 `"deleted": true`로 보냅니다.
+  - 안 바꾼 칸은 요청에서 **빼고** 보냅니다. `dose_per_time`·`dosage`에는 `null`을 보내지 않고, 오면 `VALIDATION_ERROR`(422)입니다(`fields`: `drugs[1].dose_per_time`처럼 어느 줄·칸인지). `null`은 프론트 버그라 무시하지 않고 바로 드러내기 위함입니다(11/26 설아).
+  - 1회 용량 칸을 비우면 `"dose_per_time": { "text": "" }`로 보냅니다. 읽을 수 없는 용량과 같게 `parsed: false`, `needs_check: true`, `edited: true`가 됩니다.
+  - 복용 조건을 "선택 안 함"으로 되돌리는 동작은 없습니다. 한번 고르면 다른 조건으로 바꾸기만 합니다.
+  - `drug_id: null`(약 매칭 해제)과 `times_per_day: null`(필요시 약처럼 횟수 비우기)은 뜻이 있는 값이라 그대로 받습니다.
 
   ```json
   {
@@ -1702,10 +1706,10 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ```json
   { "scan_id": 42, "status": "uploaded", "step": "structuring", "doc_type": "pill_envelope" }
   ```
-- 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing` → `fields`의 칸 표시 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
+- 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing`·`dose_per_time`/`dosage`에 `null` → `fields`의 칸 표시. 한 칸이라도 잘못되면 아무것도 저장하지 않음 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
-  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(용량은 필수 칸이 아니라 확정은 막지 않음). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
-  - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다.
+  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(읽을 수 없는 용량도 확정할 수 있지만, 빈칸으로는 확정할 수 없음(4장 확정 검사)). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
+  - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다. 빈 글자(`{"text": ""}`)는 회원이 칸을 비운 것으로 보고 읽을 수 없는 용량과 같게 둡니다.
   - 문서 종류를 다시 고르면 그동안 고친 값은 지우고 처음부터 다시 정리합니다. 확인 화면에서 "고친 내용이 사라져요"를 먼저 물어 주세요.
   - 문서 종류 다시 고르기는 `ocr_done`과 `ocr_failed`(`fail_reason`이 `no_drug_found`·`structure_error`일 때)에서만 받습니다.
   - 꼭 이 API로 저장하지 않고 확정 API에 최종 값을 한 번에 보내도 됩니다. 이 API는 새로고침·뒤로 가기에 대비한 중간 저장용입니다.
@@ -2422,3 +2426,4 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
 | 2026-11-26 | 유정 | 출처 칸 맞춤(ERD #41, 약 정보는 drugs 직접 조회): 7-1·7-6 예시의 약 출처 `rag_document_id` → `drug_id`, 7-1 비고에 출처 규칙 추가, 1-3 SSE 표 `sources` 예시와 6장 근거 대조 문장도 같게 맞춤(설아님 리뷰) |
 | 2026-11-26 | 채민 | 6-2 확인 표시 규칙 추가: 정·캡슐·포 1회 용량 0.25 미만이면 `needs_check: true`(OCR·고친 용량), `is_oral: false` 줄은 `dosage.needs_confirm: false` |
+| 2026-11-26 | 채민 | `PATCH /scans`: `dose_per_time`·`dosage`에 `null`이 오면 422, 용량을 비우면 `{"text": ""}`로 보냄(읽을 수 없는 용량과 같게), 안 바꾼 칸은 빼고 보냄(설아님과 정함) |
