@@ -24,9 +24,12 @@ export default function KakaoCallbackPage() {
     };
     if (params.get("error") === "access_denied") return fail("카카오 로그인이 취소되었어요");
     const code = params.get("code");
-    if (!code || !checkKakaoState(params.get("state"))) return fail("카카오 로그인에 실패했어요. 다시 시도해 주세요");
+    if (!code) return fail("카카오 로그인에 실패했어요. 다시 시도해 주세요");
+    // 이미 처리 중인 code면 그냥 끝냅니다. state 확인보다 먼저 해야 합니다:
+    // state는 한 번 꺼내면 지워지므로, 두 번째 호출이 state 확인을 먼저 하면 실패로 빠집니다.
     if (usedCodes.has(code)) return;
     usedCodes.add(code);
+    if (!checkKakaoState(params.get("state"))) return fail("카카오 로그인에 실패했어요. 다시 시도해 주세요");
 
     kakaoLogin(code)
       .then(async (res) => {

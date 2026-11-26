@@ -21,11 +21,14 @@ export function goKakaoLogin() {
   window.location.href = url.toString();
 }
 
+// 로그인 시작 때 저장한 state와 카카오가 돌려준 state가 같아야 통과합니다(로그인 CSRF 방지).
+// 저장한 값이 없으면 우리 사이트에서 시작한 로그인이 아니므로 실패로 봅니다.
+// 저장소 자체를 못 쓰는 환경만 확인을 건너뜁니다.
 export function checkKakaoState(state: string | null): boolean {
   try {
     const saved = sessionStorage.getItem(STATE_KEY);
     sessionStorage.removeItem(STATE_KEY);
-    return saved === null || saved === state;
+    return saved !== null && saved === state;
   } catch {
     return true;
   }
