@@ -1708,7 +1708,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ```
 - 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing`·`dose_per_time`/`dosage`에 `null` → `fields`의 칸 표시. 한 칸이라도 잘못되면 아무것도 저장하지 않음 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
-  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(용량은 필수 칸이 아니라 확정은 막지 않음). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
+  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(읽을 수 없는 용량도 확정할 수 있지만, 빈칸으로는 확정할 수 없음(4장 확정 검사)). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
   - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다. 빈 글자(`{"text": ""}`)는 회원이 칸을 비운 것으로 보고 읽을 수 없는 용량과 같게 둡니다.
   - 문서 종류를 다시 고르면 그동안 고친 값은 지우고 처음부터 다시 정리합니다. 확인 화면에서 "고친 내용이 사라져요"를 먼저 물어 주세요.
   - 문서 종류 다시 고르기는 `ocr_done`과 `ocr_failed`(`fail_reason`이 `no_drug_found`·`structure_error`일 때)에서만 받습니다.
