@@ -1452,9 +1452,9 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | --- | --- | --- |
 | OCR 글자에서 바로 온 칸(약품명, 숫자) | 그 칸을 이루는 OCR 단어 신뢰도 중 가장 낮은 값 | 0.8 미만(출발점, 테스트 후 조정) |
 | 정리하면서 원문과 다른 형태로 바뀐 칸 | `null` | 항상 |
-| 회원이 고친 칸 | `null` | 항상 `false`. 단, 고친 용량을 읽을 수 없으면(`parsed: false`) `true` |
+| 회원이 고친 칸 | `null` | 항상 `false`. 단, 고친 용량을 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `true` |
 
-**용량**(`dose_per_time`): AI 문서 4-9 모양 `{text, min, max, unit, parsed}`에 `confidence`, `needs_check`를 더합니다. `parsed: false`(적당량 등)면 `needs_check: true`이고 "용량을 확인해 주세요"를 띄웁니다. 용량은 필수 칸이 아니라 그대로 확정할 수 있습니다. 회원이 고친 용량(직접 추가한 줄 포함)은 `edited: true`이고, 이 용량을 읽을 수 없을 때는 OCR 칸과 다른 문구 "숫자와 단위로 적어 주시면 더 정확해요 (예: 1정, 0.5정, 5mL)"를 띄웁니다(화면 문구는 프론트에서 정함, 11/25 설아). OCR 용량은 `edited: false`입니다.
+**용량**(`dose_per_time`): AI 문서 4-9 모양 `{text, min, max, unit, parsed}`에 `confidence`, `needs_check`를 더합니다. `parsed: false`(적당량 등)면 `needs_check: true`이고 "용량을 확인해 주세요"를 띄웁니다. 정·캡슐·포인데 `min`이 0.25 미만(예: `0.1정`)이어도 OCR이 숫자를 잘못 읽었을 수 있어 `needs_check: true`입니다(OCR 용량·고친 용량 모두, 확정은 막지 않음). 용량은 필수 칸이 아니라 그대로 확정할 수 있습니다. 회원이 고친 용량(직접 추가한 줄 포함)은 `edited: true`이고, 이 용량을 읽을 수 없을 때는 OCR 칸과 다른 문구 "숫자와 단위로 적어 주시면 더 정확해요 (예: 1정, 0.5정, 5mL)"를 띄웁니다(화면 문구는 프론트에서 정함, 11/25 설아). OCR 용량은 `edited: false`입니다.
 
 **약품 매칭**(`match`):
 
@@ -1469,7 +1469,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | `is_oral` | 화면 | 확정 |
 | --- | --- | --- |
 | `true` | 그대로 표시 | 저장 |
-| `false` | 회색 + "먹는 약이 아니라 등록되지 않아요" | Body에서 빼고 보냄(저장 안 함) |
+| `false` | 회색 + "먹는 약이 아니라 등록되지 않아요". 복용 조건 확인(`dosage.needs_confirm`)은 `false`로 둠 | Body에서 빼고 보냄(저장 안 함) |
 | `null` | 매칭이 없거나 제형을 모름 → "먹는 약이 맞나요?" | 회원이 남겨 두면 저장 |
 
 **복용 조건**(`dosage`): AI 문서 4-3-1을 1차 범위로 줄였습니다.
@@ -1704,7 +1704,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ```
 - 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing` → `fields`의 칸 표시 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
-  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없으면(`parsed: false`) `needs_check: true`로 두어 노란색 표시를 유지합니다(용량은 필수 칸이 아니라 확정은 막지 않음). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
+  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(용량은 필수 칸이 아니라 확정은 막지 않음). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
   - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다.
   - 문서 종류를 다시 고르면 그동안 고친 값은 지우고 처음부터 다시 정리합니다. 확인 화면에서 "고친 내용이 사라져요"를 먼저 물어 주세요.
   - 문서 종류 다시 고르기는 `ocr_done`과 `ocr_failed`(`fail_reason`이 `no_drug_found`·`structure_error`일 때)에서만 받습니다.
@@ -2419,3 +2419,4 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
 | 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd_v2.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
 | 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
+| 2026-11-26 | 채민 | 6-2 확인 표시 규칙 추가: 정·캡슐·포 1회 용량 0.25 미만이면 `needs_check: true`(OCR·고친 용량), `is_oral: false` 줄은 `dosage.needs_confirm: false` |
