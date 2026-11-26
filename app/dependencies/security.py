@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, ErrorCode
 from app.core.jwt.exceptions import TokenError
 from app.core.jwt.tokens import AccessToken
 from app.models.enums import UserStatus
@@ -16,7 +16,7 @@ security = HTTPBearer(auto_error=False)
 
 
 def unauthorized() -> AppError:
-    return AppError(status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "로그인이 필요해요")
+    return AppError(status.HTTP_401_UNAUTHORIZED, ErrorCode.UNAUTHORIZED, "로그인이 필요해요")
 
 
 async def get_request_user(

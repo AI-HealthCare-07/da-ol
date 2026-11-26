@@ -109,6 +109,11 @@ class TestKakaoLogin(TestCase):
         async with client_with_kakao(FakeKakaoClient(kakao_user())) as client:
             response = await client.post("/api/v1/auth/kakao", json={})
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert response.json() == {
+            "code": "VALIDATION_ERROR",
+            "message": "입력한 내용을 확인해 주세요",
+            "fields": {"code": "필수 항목이에요"},
+        }
 
     async def test_rejoin_restricted_within_30_days(self):
         await User.create(
