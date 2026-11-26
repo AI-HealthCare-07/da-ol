@@ -8,7 +8,7 @@
 - page_no는 0으로 두고, 부르는 쪽(run_scan_job)이 replace(line, page_no=...)로 채웁니다.
 
 개인정보: 이 모듈이 돌려주는 글자는 '가리기 전' 원문입니다. 로그·예외 메시지·저장에 글자를 넣지 않습니다.
-가리기는 run_scan_job이 줄을 받자마자 mask_line()으로 합니다.
+가리기는 run_scan_job이 줄을 받자마자 mask_lines()으로 합니다.
 """
 
 from __future__ import annotations
