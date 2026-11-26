@@ -167,7 +167,7 @@ PR을 올리기 전에 아래 스크립트로 확인해주세요.
 - **DB 모델 추가**: `app/models/`에 Tortoise 모델을 정의하고 `app/core/db/databases.py`의 `MODELS` 리스트에 추가합니다.
 - **AI 로직 추가**: `ai_worker/tasks/`에 처리 로직을 작성하고 `ai_worker/main.py`에서 호출하도록 구성합니다.
 - **테스트 추가**: `app/tests/기능이름/` 안에 둡니다. 같은 기능 테스트끼리 쓰는 가짜 객체는 그 폴더의 `fakes.py`에 둡니다(예: `app/tests/scan/fakes.py`).
-- **기능 이름**: `auth`, `user`, `scan`(처방 사진 인식), `prescription`, `guide`, `chat`, `drugs`. 백엔드 테스트 폴더와 프론트 `pages` 슬라이스 이름을 이 목록에 맞춥니다.
+- **기능 이름**: `auth`, `user`, `scan`(처방 사진 인식), `prescription`, `guide`, `chat`, `drugs`. 백엔드 테스트 폴더와 프론트 `pages` 슬라이스 이름을 이 목록에 맞춥니다. 기능에 속하지 않는 공용 코드(`app/core/`) 테스트는 `app/tests/core/`에 둡니다.
 
 ---
 
