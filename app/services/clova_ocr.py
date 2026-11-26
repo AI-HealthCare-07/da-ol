@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import base64
-import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -22,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from app.core.config import Config
 from app.services.scan_service import OcrLine, OcrWord, make_line
 
 CLOVA_HTTP_TIMEOUT_SEC = 15  # 연결이 멈췄을 때의 마지막 안전장치. 페이지당 10초 제한은 _retry가 겁니다.
@@ -208,10 +208,15 @@ class ClovaOcrClient:
         self._http = http_client or httpx.AsyncClient(timeout=CLOVA_HTTP_TIMEOUT_SEC)
 
     @classmethod
-    def from_env(cls, **kwargs: Any) -> ClovaOcrClient:
-        # ⚠ PR #27(공통 테이블)이 app/core/config.py를 고치는 중이라 충돌을 피해 환경 변수를 직접 읽습니다.
-        #    머지 후 Config에 CLOVA_OCR_URL·CLOVA_OCR_SECRET을 옮길 예정.
-        return cls(os.environ.get("CLOVA_OCR_URL", ""), os.environ.get("CLOVA_OCR_SECRET", ""), **kwargs)
+    def from_config(cls, cfg: Config | None = None, **kwargs: Any) -> ClovaOcrClient:
+        """앱 설정(Config: .env·환경 변수)의 CLOVA_OCR_URL·CLOVA_OCR_SECRET으로 만듭니다.
+        cfg를 안 넘기면 앱 전역 설정(app.core.config)을 씁니다."""
+        if cfg is None:
+            # 쓸 때 가져옴: 이 모듈을 불러오기만 해도 앱 설정을 읽게 되면 파싱 테스트가 설정에 묶임
+            from app.core import config as app_config
+
+            cfg = app_config
+        return cls(cfg.CLOVA_OCR_URL, cfg.CLOVA_OCR_SECRET, **kwargs)
 
     def build_request_body(self, image: bytes) -> dict[str, Any]:
         return {

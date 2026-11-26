@@ -1,0 +1,635 @@
+{
+  "user": {
+    "kakao_id": "seed_kakao_daol_01",
+    "email": "daol.test@example.com",
+    "nickname": "김다올",
+    "name": "김다올",
+    "birth_date": "1968-05-15",
+    "gender": "male",
+    "is_profile_completed": true,
+    "signup_type": "general",
+    "status": "active"
+  },
+  "cases": [
+    {
+      "case_no": 1,
+      "category": "정상 1 (고혈압·이상지질혈증 정기 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "다올내과의원",
+      "prescribed_date": "2026-11-20",
+      "items": [
+        {
+          "item_seq": "SEED_1001",
+          "drug_name_raw": "아모잘탄정 5/50mg",
+          "source_text": "아모잘탄정 5/50mg 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1002",
+          "drug_name_raw": "리바로정 2mg",
+          "source_text": "리바로정 2mg 1정 1회 30일 저녁 식후 30분",
+          "instruction_text": "저녁 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 2,
+      "category": "정상 2 (당뇨·위장보호 복합 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "현풍연합내과",
+      "prescribed_date": "2026-11-20",
+      "items": [
+        {
+          "item_seq": "SEED_1003",
+          "drug_name_raw": "자누메트정 50/500mg",
+          "source_text": "자누메트정 50/500mg 1정 2회 30일 아침·저녁 식후 30분",
+          "instruction_text": "아침·저녁 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 2,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1004",
+          "drug_name_raw": "알마겔정",
+          "source_text": "알마겔정 1정 3회 14일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 3,
+      "category": "함정 1 (끼니 안 적힌 1일 2회)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "달성가정의학과",
+      "prescribed_date": "2026-11-20",
+      "items": [
+        {
+          "item_seq": "SEED_1005",
+          "drug_name_raw": "넥시움정 20mg",
+          "source_text": "넥시움정 20mg 1정 2회 14일 1일 2회 복용",
+          "instruction_text": "1일 2회 복용",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 2,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": null, "meal": null, "offset_minutes": null, "time_basis": "needs_check", "calculated_time": null, "status": "needs_check" },
+            { "slot_no": 2, "condition_type": null, "meal": null, "offset_minutes": null, "time_basis": "needs_check", "calculated_time": null, "status": "needs_check" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1006",
+          "drug_name_raw": "무코스타정",
+          "source_text": "무코스타정 1정 3회 14일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 4,
+      "category": "정상 3 (급성 기관지염·감기 시럽·정제 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "논공이비인후과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1007",
+          "drug_name_raw": "코대원포르테시럽",
+          "source_text": "코대원포르테시럽 20mL 3회 3일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "20mL",
+          "dose_amount": "20.000",
+          "dose_unit": "mL",
+          "times_per_day": 3,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1008",
+          "drug_name_raw": "펠루비정",
+          "source_text": "펠루비정 1정 3회 3일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1006",
+          "drug_name_raw": "무코스타정",
+          "source_text": "무코스타정 1정 3회 3일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 5,
+      "category": "정상 4 (식전·취침 전 복용 조건 포함 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "구지속편한내과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1009",
+          "drug_name_raw": "란스톤엘에프디티정 30mg",
+          "source_text": "란스톤엘에프디티정 30mg 1정 1회 14일 아침 식전 30분",
+          "instruction_text": "아침 식전 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "before_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "07:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1010",
+          "drug_name_raw": "모사프리드정 5mg",
+          "source_text": "모사프리드정 5mg 1정 3회 14일 식전 30분",
+          "instruction_text": "식전 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "before_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "07:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "before_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "12:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "before_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "18:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1011",
+          "drug_name_raw": "하루날디정 0.2mg",
+          "source_text": "하루날디정 0.2mg 1정 1회 14일 취침 전",
+          "instruction_text": "취침 전",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "bedtime", "meal": null, "offset_minutes": null, "time_basis": "prescription", "calculated_time": "23:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 6,
+      "category": "정상 5 (필요시 PRN 복용 약 포함 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "유가정형외과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1012",
+          "drug_name_raw": "쎄레브렉스캡슐 200mg",
+          "source_text": "쎄레브렉스캡슐 200mg 1캡슐 2회 7일 아침·저녁 식후 30분",
+          "instruction_text": "아침·저녁 식후 30분",
+          "dose_text": "1캡슐",
+          "dose_amount": "1.000",
+          "dose_unit": "캡슐",
+          "times_per_day": 2,
+          "total_days": 7,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1013",
+          "drug_name_raw": "타이레놀정 500mg",
+          "source_text": "타이레놀정 500mg 1정 - 3일 필요시 복용",
+          "instruction_text": "필요시 복용",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": null,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "as_needed", "meal": null, "offset_minutes": null, "time_basis": "prescription", "calculated_time": null, "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 7,
+      "category": "정상 6 (만성질환 다제약물 4종 복합 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "화원대학내과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1014",
+          "drug_name_raw": "노바스크정 5mg",
+          "source_text": "노바스크정 5mg 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1015",
+          "drug_name_raw": "다이아벡스정 500mg",
+          "source_text": "다이아벡스정 500mg 1정 2회 30일 아침·저녁 식후 즉시",
+          "instruction_text": "아침·저녁 식후 즉시",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 2,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 0, "time_basis": "prescription", "calculated_time": "08:00:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 0, "time_basis": "prescription", "calculated_time": "18:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1016",
+          "drug_name_raw": "크레스토정 10mg",
+          "source_text": "크레스토정 10mg 1정 1회 30일 저녁 식후 30분",
+          "instruction_text": "저녁 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1017",
+          "drug_name_raw": "아스피린프로텍트정 100mg",
+          "source_text": "아스피린프로텍트정 100mg 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 8,
+      "category": "함정 2 (공공데이터 미등록 약품 포함)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "다올가정의학과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": null,
+          "drug_name_raw": "다올비타플러스정",
+          "source_text": "다올비타플러스정 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1004",
+          "drug_name_raw": "알마겔정",
+          "source_text": "알마겔정 1정 3회 14일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 14,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 9,
+      "category": "함정 3 (비정상·오인식 용량 10정 → 회원 수정 1정 확정)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "현풍중앙의원",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1018",
+          "drug_name_raw": "타이레놀8시간이알서방정",
+          "source_text": "타이레놀8시간이알서방정 10정 3회 5일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 5,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1019",
+          "drug_name_raw": "스티렌투엑스정",
+          "source_text": "스티렌투엑스정 1정 2회 5일 아침·저녁 식후 30분",
+          "instruction_text": "아침·저녁 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 2,
+          "total_days": 5,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 10,
+      "category": "함정 4 (마지막 줄 약 누락 주의 3종 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "달성연합내과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1020",
+          "drug_name_raw": "트라젠타정 5mg",
+          "source_text": "트라젠타정 5mg 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1021",
+          "drug_name_raw": "아토르바스타틴정 10mg",
+          "source_text": "아토르바스타틴정 10mg 1정 1회 30일 저녁 식후 30분",
+          "instruction_text": "저녁 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1022",
+          "drug_name_raw": "가스모틴정 5mg",
+          "source_text": "가스모틴정 5mg 1정 3회 30일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 11,
+      "category": "선택 1 (약봉투 pill_envelope 포맷 인식)",
+      "doc_type": "pill_envelope",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "다올온누리약국",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1023",
+          "drug_name_raw": "세토펜정 325mg",
+          "source_text": "세토펜정 325mg 1정 3회 3일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1024",
+          "drug_name_raw": "베아제정",
+          "source_text": "베아제정 1정 3회 3일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 3,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 12,
+      "category": "선택 2 (개인정보 마스킹 후 확정 처방)",
+      "doc_type": "prescription",
+      "seed_action": "confirmed_prescription",
+      "hospital_name": "현풍다올의원",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1001",
+          "drug_name_raw": "아모잘탄정 5/50mg",
+          "source_text": "아모잘탄정 5/50mg 1정 1회 30일 아침 식후 30분",
+          "instruction_text": "아침 식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 1,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" }
+          ]
+        },
+        {
+          "item_seq": "SEED_1006",
+          "drug_name_raw": "무코스타정",
+          "source_text": "무코스타정 1정 3회 30일 식후 30분",
+          "instruction_text": "식후 30분",
+          "dose_text": "1정",
+          "dose_amount": "1.000",
+          "dose_unit": "정",
+          "times_per_day": 3,
+          "total_days": 30,
+          "is_oral": true,
+          "conditions": [
+            { "slot_no": 1, "condition_type": "after_meal", "meal": "breakfast", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "08:30:00", "status": "ok" },
+            { "slot_no": 2, "condition_type": "after_meal", "meal": "lunch", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "13:00:00", "status": "ok" },
+            { "slot_no": 3, "condition_type": "after_meal", "meal": "dinner", "offset_minutes": 30, "time_basis": "prescription", "calculated_time": "19:00:00", "status": "ok" }
+          ]
+        }
+      ]
+    },
+    {
+      "case_no": 13,
+      "category": "선택 3 (비경구약 is_oral=false 거절 테스트용 — 처방 미확정)",
+      "doc_type": "prescription",
+      "seed_action": "ocr_done_non_oral_rejection_test",
+      "hospital_name": "현풍밝은안과피부과",
+      "prescribed_date": "2026-11-24",
+      "items": [
+        {
+          "item_seq": "SEED_1025",
+          "drug_name_raw": "히알유니점안액 0.15%",
+          "source_text": "히알유니점안액 0.15% 1방울 4회 14일 양안 점안",
+          "instruction_text": "양안 점안",
+          "dose_text": "1방울",
+          "dose_amount": "1.000",
+          "dose_unit": "방울",
+          "times_per_day": 4,
+          "total_days": 14,
+          "is_oral": false,
+          "conditions": []
+        },
+        {
+          "item_seq": "SEED_1026",
+          "drug_name_raw": "에스로반연고",
+          "source_text": "에스로반연고 적당량 2회 7일 환부 도포",
+          "instruction_text": "환부 도포",
+          "dose_text": "적당량",
+          "dose_amount": null,
+          "dose_unit": "적당량",
+          "times_per_day": 2,
+          "total_days": 7,
+          "is_oral": false,
+          "conditions": []
+        }
+      ]
+    }
+  ]
+}

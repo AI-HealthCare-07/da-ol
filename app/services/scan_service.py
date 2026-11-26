@@ -17,54 +17,80 @@
   파일 삭제는 블록을 나온 뒤(커밋 후)에 합니다.
 - PDF 렌더링 같은 무거운 동기 작업을 async 함수 안에서 할 때는 asyncio.to_thread()로 감쌉니다.
 """
+
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
+from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 
-from app.services.text_rules import MaskSpan, apply_mask_spans, find_mask_spans, parse_dose_text
 from app.dtos.scan import (
-    CONFIRM_ALLOWED_TIMINGS, DOC_TYPE_RETRY_REASONS, FAIL_MESSAGES,
-    ConfirmRequest, Cycle, CycleType, DocType, DocumentStatus, Dosage, DosePerTimeField,
-    DrugMatch, FailReason, FieldValue, MatchStatus, ParsedBy, ScanConfirmedResponse,
-    ScanDrug, ScanEditRequest, ScanExpiredResponse, ScanOcrDoneResponse,
-    ScanOcrFailedResponse, ScanPage, ScanStep, ScanUploadedResponse, Dose,
+    CONFIRM_ALLOWED_TIMINGS,
+    DOC_TYPE_RETRY_REASONS,
+    FAIL_MESSAGES,
+    ConfirmRequest,
+    Cycle,
+    CycleType,
+    DocType,
+    DocumentStatus,
+    Dosage,
+    Dose,
+    DosePerTimeField,
+    DrugMatch,
+    FailReason,
+    FieldValue,
+    MatchStatus,
+    ParsedBy,
+    ScanConfirmedResponse,
+    ScanDrug,
+    ScanEditRequest,
+    ScanExpiredResponse,
+    ScanOcrDoneResponse,
+    ScanOcrFailedResponse,
+    ScanPage,
+    ScanStep,
+    ScanUploadedResponse,
 )
+from app.services.text_rules import MaskSpan, apply_mask_spans, find_mask_spans, is_suspicious_dose, parse_dose_text
 
 # ---------------------------------------------------------------------------
 # 명세서 수치 (테스트 후 조정)
 # ---------------------------------------------------------------------------
-IMAGE_TTL = timedelta(hours=3)          # image_delete_due_at
-JOB_TIMEOUT = timedelta(seconds=90)     # ocr_failed(timeout)
-OCR_TIMEOUT_SEC = 10                    # 페이지당
+IMAGE_TTL = timedelta(hours=3)  # image_delete_due_at
+JOB_TIMEOUT = timedelta(seconds=90)  # ocr_failed(timeout)
+OCR_TIMEOUT_SEC = 10  # 페이지당
 OCR_MAX_RETRY = 2
 LLM_MAX_RETRY = 1
 NEEDS_CHECK_BELOW = 0.8
 MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_TOTAL_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 10
-DAILY_SCAN_LIMIT = 20                   # expired 문서도 셈
+DAILY_SCAN_LIMIT = 20  # expired 문서도 셈
 PROMPT_VERSION = "parse_document_v1"
 
+logger = logging.getLogger(__name__)
 
-class ScanFailed(Exception):
+
+class ScanFailed(Exception):  # noqa: N818 (명세서 용어 그대로 유지)
     def __init__(self, reason: FailReason):
         super().__init__(reason.value)
         self.reason = reason
 
 
-class ScanCancelled(Exception):
+class ScanCancelled(Exception):  # noqa: N818 (명세서 용어 그대로 유지)
     """DELETE /scans로 expired가 됨 → 결과를 버리고 끝냄."""
 
 
 class ScanValidationError(Exception):
     """VALIDATION_ERROR(422). fields = {"drugs[1].line_no": "사유 문장"}"""
+
     def __init__(self, fields: dict[str, str]):
         super().__init__("VALIDATION_ERROR")
         self.fields = fields
@@ -77,19 +103,19 @@ class ScanValidationError(Exception):
 class OcrWord:
     text: str
     confidence: float
-    start: int = 0          # 줄 글자 안의 위치
+    start: int = 0  # 줄 글자 안의 위치
     end: int = 0
 
 
 @dataclass
 class OcrLine:
     page_no: int
-    line_idx: int           # 페이지 안 줄 순서(0부터)
+    line_idx: int  # 페이지 안 줄 순서(0부터)
     words: list[OcrWord]
     text: str = ""
 
     @property
-    def ref(self) -> str:   # LLM에 넘기는 줄 번호
+    def ref(self) -> str:  # LLM에 넘기는 줄 번호
         return f"p{self.page_no}-l{self.line_idx}"
 
 
@@ -154,8 +180,7 @@ def mask_lines(lines: list[OcrLine]) -> list[OcrLine]:
         extra[i + 1] += b
     out = []
     for line, cross in zip(lines, extra, strict=True):
-        own = [sp for sp in find_mask_spans(line.text)
-               if all(sp[1] <= c[0] or sp[0] >= c[1] for c in cross)]
+        own = [sp for sp in find_mask_spans(line.text) if all(sp[1] <= c[0] or sp[0] >= c[1] for c in cross)]
         out.append(_apply_spans_to_line(line, sorted(cross + own)))
     return out
 
@@ -171,7 +196,7 @@ class OcrClient(Protocol):
 
 
 class LlmDrug(BaseModel):
-    line_ref: str                       # "p1-l7"
+    line_ref: str  # "p1-l7"
     drug_name: str
     dose_text: str | None = None
     times_per_day: int | None = None
@@ -181,6 +206,7 @@ class LlmDrug(BaseModel):
 
 class LlmDocument(BaseModel):
     """parse_document_v1 프롬프트가 돌려줄 JSON. 형식 검사 실패 = 재요청 대상."""
+
     hospital_name: str | None = None
     prescribed_date: date | None = None
     drugs: list[LlmDrug]
@@ -201,8 +227,7 @@ class DrugCatalog(Protocol):
 
 
 class InstructionParser(Protocol):
-    def parse(self, instruction_text: str | None, times_per_day: int | None,
-              start_date: date) -> Dosage:
+    def parse(self, instruction_text: str | None, times_per_day: int | None, start_date: date) -> Dosage:
         """복용 조건 표현 사전(parsed_by=rule). 사전에 없거나 1차 미계산 조건이면 needs_confirm=True."""
 
 
@@ -212,16 +237,19 @@ class FileStore(Protocol):
 
 class ScanRepo(Protocol):
     """Tortoise 구현은 app/repositories/scan_repository.py. conn이 있으면 그 트랜잭션 안에서 실행."""
-    def transaction(self) -> AbstractAsyncContextManager[Any]: ...          # in_transaction()
-    async def get(self, scan_id: int, *, for_update: bool = False, conn: Any = None) -> "ScanDoc": ...
+
+    def transaction(self) -> AbstractAsyncContextManager[Any]: ...  # in_transaction()
+    async def get(self, scan_id: int, *, for_update: bool = False, conn: Any = None) -> ScanDoc: ...
     async def set_step(self, scan_id: int, step: ScanStep) -> None: ...
     async def set_reprocessing(self, scan_id: int, doc_type: DocType, now: datetime, *, conn: Any = None) -> None: ...
     async def finish_ocr_done(self, scan_id: int, parsed_result: dict) -> bool: ...
     async def finish_ocr_failed(self, scan_id: int, reason: FailReason) -> bool: ...
     async def save_parsed_result(self, scan_id: int, parsed_result: dict) -> None: ...
-    async def expire(self, scan_id: int, *, conn: Any = None) -> None: ...  # status=expired, parsed_result·masked_lines=NULL
+    async def expire(
+        self, scan_id: int, *, conn: Any = None
+    ) -> None: ...  # status=expired, parsed_result·masked_lines=NULL
     async def page_images(self, scan_id: int) -> list[tuple[int, bytes]]: ...
-    async def save_masked_lines(self, scan_id: int, lines: list[dict]) -> None: ...   # ⚠ 저장 칸 미정
+    async def save_masked_lines(self, scan_id: int, lines: list[dict]) -> None: ...  # ⚠ 저장 칸 미정
     async def load_masked_lines(self, scan_id: int) -> list[dict]: ...
     async def mark_pages_deleted(self, scan_id: int, now: datetime) -> None: ...
 
@@ -233,13 +261,13 @@ class ScanDoc:
     status: DocumentStatus
     step: ScanStep | None
     doc_type: DocType
-    processing_started_at: datetime     # ⚠ 90초 기준. 업로드 시각, 문서 종류 다시 고르면 그 시각
+    processing_started_at: datetime  # ⚠ 90초 기준. 업로드 시각, 문서 종류 다시 고르면 그 시각
     image_delete_due_at: datetime
     page_count: int
     fail_reason: FailReason | None = None
     parsed_result: dict | None = None
     prescription_id: int | None = None
-    pages_left: bool = True             # document_pages.deleted_at이 빈 페이지가 있는지
+    pages_left: bool = True  # document_pages.deleted_at이 빈 페이지가 있는지
 
 
 # ---------------------------------------------------------------------------
@@ -249,8 +277,9 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", "", s)
 
 
-def build_field(value, line: OcrLine | None, *, kind: str = "text",
-                exclude: tuple[int, int] | None = None) -> FieldValue:
+def build_field(
+    value, line: OcrLine | None, *, kind: str = "text", exclude: tuple[int, int] | None = None
+) -> FieldValue:
     """원문 단어에서 그대로 온 값이면 그 단어들의 최소 신뢰도, 아니면 confidence=None·needs_check=True.
     kind: "text"(부분 문자열), "int"(같은 숫자 단어, 여러 개면 가장 낮은 신뢰도), "date"(숫자만 비교).
     값이 없으면 needs_check=True."""
@@ -260,9 +289,13 @@ def build_field(value, line: OcrLine | None, *, kind: str = "text",
     hits: list[OcrWord] = []
     if kind == "int":
         target = str(value)
-        hits = [w for w in line.words
-                if re.sub(r"[^\d]", "", w.text) == target and w.text.strip(".회일정 ").isdigit()
-                and not (exclude and exclude[0] <= w.start < exclude[1])]
+        hits = [
+            w
+            for w in line.words
+            if re.sub(r"[^\d]", "", w.text) == target
+            and w.text.strip(".회일정 ").isdigit()
+            and not (exclude and exclude[0] <= w.start < exclude[1])
+        ]
     elif kind == "date":
         digits = value.strftime("%Y%m%d") if isinstance(value, date) else re.sub(r"\D", "", str(value))
         joined = "".join(re.sub(r"\D", "", w.text) for w in line.words)
@@ -277,7 +310,7 @@ def build_field(value, line: OcrLine | None, *, kind: str = "text",
                 owner.append(w)
         idx = compact.find(target) if target else -1
         if idx >= 0:
-            hits = list({id(w): w for w in owner[idx:idx + len(target)]}.values())
+            hits = list({id(w): w for w in owner[idx : idx + len(target)]}.values())
 
     if not hits:
         return FieldValue(value=value, confidence=None, needs_check=True)
@@ -293,27 +326,44 @@ def _span_of(line: OcrLine, text: str) -> tuple[int, int] | None:
 def fallback_dosage(times_per_day: int | None, start_date: date, *, as_needed: bool = False) -> Dosage:
     """사전으로 못 읽었을 때: 회차만 만들고 끼니·시점은 비워 needs_confirm=True."""
     n = 0 if as_needed or not times_per_day else times_per_day
-    return Dosage(parsed_by=ParsedBy.RULE, needs_confirm=True, as_needed=as_needed,
-                  doses=[Dose(dose_no=i + 1, meal=None, timing=None, offset_min=None) for i in range(n)],
-                  cycle=Cycle(type=CycleType.DAILY, start_date=start_date))
+    return Dosage(
+        parsed_by=ParsedBy.RULE,
+        needs_confirm=True,
+        as_needed=as_needed,
+        doses=[Dose(dose_no=i + 1, meal=None, timing=None, offset_min=None) for i in range(n)],
+        cycle=Cycle(type=CycleType.DAILY, start_date=start_date),
+    )
 
 
-def build_scan_drug(llm: LlmDrug, line: OcrLine | None, line_no: int, *, start_date: date,
-                    match: DrugMatch, is_oral: bool | None,
-                    instructions: InstructionParser) -> ScanDrug:
+def build_scan_drug(
+    llm: LlmDrug,
+    line: OcrLine | None,
+    line_no: int,
+    *,
+    start_date: date,
+    match: DrugMatch,
+    is_oral: bool | None,
+    instructions: InstructionParser,
+) -> ScanDrug:
     """약 한 줄의 칸을 만듭니다(동기·순수). 약품 매칭은 부르는 쪽에서 미리 해서 넘깁니다."""
     name_field = build_field(llm.drug_name, line)
-    name_span = _span_of(line, llm.drug_name) if line else None   # 약 이름 속 숫자(5mg)를 횟수로 잡지 않게
+    name_span = _span_of(line, llm.drug_name) if line else None  # 약 이름 속 숫자(5mg)를 횟수로 잡지 않게
 
     dose = parse_dose_text(llm.dose_text or "")
     dose_src = build_field(llm.dose_text, line)
-    dose_field = DosePerTimeField(**dose, confidence=dose_src.confidence,
-                                  needs_check=dose_src.needs_check or not dose["parsed"])
+    dose_field = DosePerTimeField(
+        **dose,
+        confidence=dose_src.confidence,
+        needs_check=dose_src.needs_check or not dose["parsed"] or is_suspicious_dose(dose),
+    )
 
     try:
         dosage = instructions.parse(llm.instruction_text, llm.times_per_day, start_date)
     except Exception:
         dosage = fallback_dosage(llm.times_per_day, start_date)
+    if is_oral is False:
+        # 먹는 약이 아니면 확정 때 빠지므로(6-2 is_oral 표) 복용 조건 확인을 요구하지 않음
+        dosage = dosage.model_copy(update={"needs_confirm": False})
 
     times_field = build_field(llm.times_per_day, line, kind="int", exclude=name_span)
     if dosage.as_needed and llm.times_per_day is None:
@@ -322,7 +372,7 @@ def build_scan_drug(llm: LlmDrug, line: OcrLine | None, line_no: int, *, start_d
     return ScanDrug(
         line_no=line_no,
         page_no=line.page_no if line else None,
-        raw_text=line.text if line else None,       # 가린 줄
+        raw_text=line.text if line else None,  # 가린 줄
         drug_name=name_field,
         match=match,
         is_oral=is_oral,
@@ -340,25 +390,27 @@ def parse_llm_output(raw: str) -> LlmDocument:
     return LlmDocument.model_validate_json(text)
 
 
-async def assemble_parsed_result(doc: LlmDocument, lines: list[OcrLine], *, today: date,
-                                 catalog: DrugCatalog, instructions: InstructionParser) -> dict:
+async def assemble_parsed_result(
+    doc: LlmDocument, lines: list[OcrLine], *, today: date, catalog: DrugCatalog, instructions: InstructionParser
+) -> dict:
     """③ LLM 결과 + ④ 줄별 규칙 → medical_documents.parsed_result(가린 값).
     drugs는 원문 줄 순서대로, 같은 약이어도 합치지 않습니다. 약품 매칭은 동시에 실행합니다."""
-    by_ref = {l.ref: l for l in lines}
-    order = {l.ref: i for i, l in enumerate(lines)}
+    by_ref = {ln.ref: ln for ln in lines}
+    order = {ln.ref: i for i, ln in enumerate(lines)}
     drugs_sorted = sorted(doc.drugs, key=lambda d: order.get(d.line_ref, len(order)))
     matches = await asyncio.gather(*(catalog.match(d.drug_name) for d in drugs_sorted))
 
     start_date = doc.prescribed_date or today
     drugs = [
-        build_scan_drug(d, by_ref.get(d.line_ref), i + 1, start_date=start_date,
-                        match=m, is_oral=oral, instructions=instructions).model_dump(mode="json")
-        for i, (d, (m, oral)) in enumerate(zip(drugs_sorted, matches))
+        build_scan_drug(
+            d, by_ref.get(d.line_ref), i + 1, start_date=start_date, match=m, is_oral=oral, instructions=instructions
+        ).model_dump(mode="json")
+        for i, (d, (m, oral)) in enumerate(zip(drugs_sorted, matches, strict=True))
     ]
 
     def doc_field(value, kind):
-        for l in lines:
-            f = build_field(value, l, kind=kind)
+        for ln in lines:
+            f = build_field(value, ln, kind=kind)
             if f.confidence is not None:
                 return f
         return build_field(value, None)
@@ -384,17 +436,19 @@ class Deps:
     catalog: DrugCatalog
     instructions: InstructionParser
     files: FileStore
-    now: Callable[[], datetime]          # 시간대 있는 현재 시각(Tortoise use_tz 설정과 맞추기)
+    now: Callable[[], datetime]  # 시간대 있는 현재 시각(Tortoise use_tz 설정과 맞추기)
 
 
-async def _retry(make_call: Callable[[], Awaitable], *, retries: int, fail: FailReason,
-                 timeout: float | None = None):
+async def _retry(make_call: Callable[[], Awaitable], *, retries: int, fail: FailReason, timeout: float | None = None):
     for attempt in range(retries + 1):
         try:
             return await asyncio.wait_for(make_call(), timeout)
-        except Exception:
+        except Exception as e:
             if attempt == retries:
-                raise ScanFailed(fail)
+                # from e 금지: LLM 검증 에러 메시지에 처방 내용(약 이름·복용법)이 들어 있어
+                # 예외를 연결하면 로그·스택에 남을 수 있음. 원인을 남길 땐 에러 종류 이름만 기록
+                logger.warning("scan retry failed: reason=%s error=%s", fail.value, type(e).__name__)
+                raise ScanFailed(fail) from None
 
 
 async def _check_alive(deps: Deps, scan_id: int) -> ScanDoc:
@@ -416,18 +470,22 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
             # 가리기 전 글자는 이 함수의 메모리에만 있고, 저장·로그·LLM으로 나가지 않습니다.
             lines: list[OcrLine] = []
             for page_no, image in await deps.repo.page_images(scan_id):
-                raw_lines = await _retry(lambda: deps.ocr.read_page(image), retries=OCR_MAX_RETRY,
-                                         fail=FailReason.OCR_ERROR, timeout=OCR_TIMEOUT_SEC)
-                lines.extend(mask_lines([replace(l, page_no=page_no) for l in raw_lines]))
+                raw_lines = await _retry(
+                    lambda image=image: deps.ocr.read_page(image),
+                    retries=OCR_MAX_RETRY,
+                    fail=FailReason.OCR_ERROR,
+                    timeout=OCR_TIMEOUT_SEC,
+                )
+                lines.extend(mask_lines([replace(ln, page_no=page_no) for ln in raw_lines]))
                 await _check_alive(deps, scan_id)
             if is_no_text(lines):
                 raise ScanFailed(FailReason.NO_TEXT)
-            await deps.repo.save_masked_lines(scan_id, [_line_to_dict(l) for l in lines])
+            await deps.repo.save_masked_lines(scan_id, [_line_to_dict(ln) for ln in lines])
             await deps.repo.set_step(scan_id, ScanStep.STRUCTURING)
 
         # ③ 약 정보 정리 (LLM, 가린 줄만)
         doc = await _check_alive(deps, scan_id)
-        numbered = [f"[{l.ref}] {l.text}" for l in lines]
+        numbered = [f"[{ln.ref}] {ln.text}" for ln in lines]
 
         async def ask_llm() -> LlmDocument:
             return parse_llm_output(await deps.llm.structure(numbered, doc.doc_type))
@@ -437,8 +495,9 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
             raise ScanFailed(FailReason.NO_DRUG_FOUND)
 
         # ④ 줄별 규칙 처리
-        parsed = await assemble_parsed_result(llm_doc, lines, today=deps.now().date(),
-                                              catalog=deps.catalog, instructions=deps.instructions)
+        parsed = await assemble_parsed_result(
+            llm_doc, lines, today=deps.now().date(), catalog=deps.catalog, instructions=deps.instructions
+        )
 
         # ⑤ 저장 직전에 취소·시간 초과 다시 확인
         await _check_alive(deps, scan_id)
@@ -461,7 +520,7 @@ async def _fail_unless_expired(deps: Deps, scan_id: int, reason: FailReason) -> 
 
 def is_no_text(lines: list[OcrLine], *, min_words: int = 5, min_avg_conf: float = 0.5) -> bool:
     """⚠ 기준값은 가상 처방전 테스트로 정함."""
-    words = [w for l in lines for w in l.words if w.text]
+    words = [w for ln in lines for w in ln.words if w.text]
     if len(words) < min_words:
         return True
     return sum(w.confidence for w in words) / len(words) < min_avg_conf
@@ -471,9 +530,8 @@ def is_timed_out(doc: ScanDoc, now: datetime) -> bool:
     return doc.status == DocumentStatus.UPLOADED and now - doc.processing_started_at > JOB_TIMEOUT
 
 
-def _line_to_dict(l: OcrLine) -> dict:
-    return {"page_no": l.page_no, "line_idx": l.line_idx,
-            "words": [[w.text, w.confidence] for w in l.words]}
+def _line_to_dict(ln: OcrLine) -> dict:
+    return {"page_no": ln.page_no, "line_idx": ln.line_idx, "words": [[w.text, w.confidence] for w in ln.words]}
 
 
 def _line_from_dict(d: dict) -> OcrLine:
@@ -483,19 +541,28 @@ def _line_from_dict(d: dict) -> OcrLine:
 # ---------------------------------------------------------------------------
 # GET /scans/{scan_id}
 # ---------------------------------------------------------------------------
-async def get_scan(deps: Deps, scan_id: int, *,
-                   fill_default_meals: Callable[[list[dict], int | None], list[dict]]):
+async def get_scan(deps: Deps, scan_id: int, *, fill_default_meals: Callable[[list[dict], int | None], list[dict]]):
     doc = await deps.repo.get(scan_id)
-    if is_timed_out(doc, deps.now()):                      # 작업이 멈춰도(서버 재시작 등) 조회에서 실패로 바꿈
+    if is_timed_out(doc, deps.now()):  # 작업이 멈춰도(서버 재시작 등) 조회에서 실패로 바꿈
         await deps.repo.finish_ocr_failed(scan_id, FailReason.TIMEOUT)
         doc = await deps.repo.get(scan_id)
 
     if doc.status == DocumentStatus.UPLOADED:
-        return ScanUploadedResponse(scan_id=scan_id, status=doc.status, step=doc.step,
-                                    doc_type=doc.doc_type, image_delete_due_at=doc.image_delete_due_at)
+        return ScanUploadedResponse(
+            scan_id=scan_id,
+            status=doc.status,
+            step=doc.step,
+            doc_type=doc.doc_type,
+            image_delete_due_at=doc.image_delete_due_at,
+        )
     if doc.status == DocumentStatus.OCR_FAILED:
-        return ScanOcrFailedResponse(scan_id=scan_id, status=doc.status, doc_type=doc.doc_type,
-                                     fail_reason=doc.fail_reason, message=FAIL_MESSAGES[doc.fail_reason])
+        return ScanOcrFailedResponse(
+            scan_id=scan_id,
+            status=doc.status,
+            doc_type=doc.doc_type,
+            fail_reason=doc.fail_reason,
+            message=FAIL_MESSAGES[doc.fail_reason],
+        )
     if doc.status == DocumentStatus.CONFIRMED:
         return ScanConfirmedResponse(scan_id=scan_id, status=doc.status, prescription_id=doc.prescription_id)
     if doc.status == DocumentStatus.EXPIRED:
@@ -510,7 +577,9 @@ async def get_scan(deps: Deps, scan_id: int, *,
         d["dosage"] = {**d["dosage"], "doses": fill_default_meals(d["dosage"]["doses"], times)}
         drugs.append(d)
     return ScanOcrDoneResponse(
-        scan_id=scan_id, status=doc.status, doc_type=doc.doc_type,
+        scan_id=scan_id,
+        status=doc.status,
+        doc_type=doc.doc_type,
         image_delete_due_at=doc.image_delete_due_at,
         pages=[ScanPage(page_no=i + 1) for i in range(doc.page_count)],
         **{**parsed, "drugs": drugs},
@@ -526,13 +595,21 @@ async def lookup_edit_drugs(catalog: DrugCatalog, req: ScanEditRequest) -> dict[
     return await catalog.get_many(ids) if ids else {}
 
 
-def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tuple[str, bool | None]],
-                instructions: InstructionParser, today: date) -> dict:
+def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 PR)
+    parsed: dict,
+    req: ScanEditRequest,
+    *,
+    drug_lookup: dict[int, tuple[str, bool | None]],
+    instructions: InstructionParser,
+    today: date,
+) -> dict:
     """① 고친 값 저장. 바꾼 칸만 반영하고, 고친 칸은 confidence=None·needs_check=False.
     용량을 글자로 고치면 parse_dose_text()로 다시 채우고, 복용 조건을 고르면 parsed_by=user."""
     result = {**parsed, "drugs": [dict(d) for d in parsed["drugs"]]}
     errors: dict[str, str] = {}
-    user = lambda v: {"value": v, "confidence": None, "needs_check": False}
+
+    def user(v):
+        return {"value": v, "confidence": None, "needs_check": False}
 
     sent = req.model_dump(exclude_unset=True)
     if "hospital_name" in sent:
@@ -549,7 +626,7 @@ def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tu
         path = f"drugs[{i}]"
         e = edit.model_dump(exclude_unset=True)
 
-        if edit.line_no is None:                           # 새 줄
+        if edit.line_no is None:  # 새 줄
             if not edit.drug_name:
                 errors[f"{path}.drug_name"] = "약 이름을 입력해 주세요"
                 continue
@@ -582,7 +659,12 @@ def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tu
         if "dose_per_time" in e:
             dose = parse_dose_text(edit.dose_per_time.text)
             # 명세서 6-2 예외: 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없는 용량은 계속 표시
-            drug["dose_per_time"] = {**dose, "confidence": None, "needs_check": not dose["parsed"], "edited": True}
+            drug["dose_per_time"] = {
+                **dose,
+                "confidence": None,
+                "needs_check": not dose["parsed"] or is_suspicious_dose(dose),
+                "edited": True,
+            }
         if "total_days" in e:
             drug["total_days"] = user(edit.total_days)
         if "times_per_day" in e:
@@ -601,6 +683,11 @@ def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tu
                 new["doses"] = [d.model_dump(mode="json") for d in edit.dosage.doses]
             new.update(parsed_by=ParsedBy.USER.value, needs_confirm=False)
             drug["dosage"] = new
+        if "drug_id" in e and "dosage" not in e and drug["dosage"]["parsed_by"] == ParsedBy.RULE.value:
+            # 약이 바뀌면 먹는 약 여부가 달라질 수 있으니 사전 결과를 다시 만듦(needs_confirm 되돌리기)
+            drug["dosage"] = _rebuild_dosage(drug, drug["times_per_day"]["value"], start_date, instructions)
+        if drug["is_oral"] is False:
+            drug["dosage"] = {**drug["dosage"], "needs_confirm": False}
 
     if errors:
         raise ScanValidationError(errors)
@@ -612,12 +699,25 @@ def apply_edits(parsed: dict, req: ScanEditRequest, *, drug_lookup: dict[int, tu
 def _new_line(line_no: int, start_date: date) -> dict:
     empty = {"value": None, "confidence": None, "needs_check": False}
     return {
-        "line_no": line_no, "page_no": None, "raw_text": None,
-        "drug_name": dict(empty), "match": {"status": "none", "drug_id": None, "candidates": []},
+        "line_no": line_no,
+        "page_no": None,
+        "raw_text": None,
+        "drug_name": dict(empty),
+        "match": {"status": "none", "drug_id": None, "candidates": []},
         "is_oral": None,
-        "dose_per_time": {"text": "", "min": None, "max": None, "unit": None, "parsed": False,
-                          "confidence": None, "needs_check": True, "edited": True},  # 회원이 직접 추가한 줄
-        "times_per_day": dict(empty), "total_days": dict(empty), "instruction_text": None,
+        "dose_per_time": {
+            "text": "",
+            "min": None,
+            "max": None,
+            "unit": None,
+            "parsed": False,
+            "confidence": None,
+            "needs_check": True,
+            "edited": True,
+        },  # 회원이 직접 추가한 줄
+        "times_per_day": dict(empty),
+        "total_days": dict(empty),
+        "instruction_text": None,
         "dosage": fallback_dosage(None, start_date).model_dump(mode="json"),
     }
 
@@ -635,8 +735,7 @@ def can_repick_doc_type(doc: ScanDoc) -> bool:
     return doc.status == DocumentStatus.OCR_FAILED and doc.fail_reason in DOC_TYPE_RETRY_REASONS
 
 
-async def repick_doc_type(deps: Deps, scan_id: int, doc_type: DocType,
-                          schedule: Callable[..., None]) -> None:
+async def repick_doc_type(deps: Deps, scan_id: int, doc_type: DocType, schedule: Callable[..., None]) -> None:
     """② 문서 종류 다시 고르기 → 202. 고친 값은 버리고, OCR 없이 가린 줄로 ③부터 다시.
     schedule에는 BackgroundTasks.add_task를 넘깁니다."""
     async with deps.repo.transaction() as conn:
@@ -652,25 +751,41 @@ async def repick_doc_type(deps: Deps, scan_id: int, doc_type: DocType,
 # ---------------------------------------------------------------------------
 class ScanStateError(Exception):
     """API가 에러 코드로 바꿈: NOT_FOUND / DOCUMENT_NOT_READY / DOCUMENT_ALREADY_CONFIRMED / DOCUMENT_EXPIRED"""
+
     def __init__(self, code: str):
         super().__init__(code)
         self.code = code
 
 
-async def confirm_scan(deps: Deps, scan_id: int, user_id: int, body: ConfirmRequest,
-                       create_prescription: Callable[..., Awaitable[dict]], background_tasks=None) -> dict:
-    async with deps.repo.transaction() as conn:              # 블록이 끝나면 커밋(3)
-        doc = await deps.repo.get(scan_id, for_update=True, conn=conn)   # 1. 잠그고 상태·소유 확인
+async def confirm_scan(
+    deps: Deps,
+    scan_id: int,
+    user_id: int,
+    body: ConfirmRequest,
+    create_prescription: Callable[..., Awaitable[dict]],
+    background_tasks=None,
+) -> dict:
+    async with deps.repo.transaction() as conn:  # 블록이 끝나면 커밋(3)
+        doc = await deps.repo.get(scan_id, for_update=True, conn=conn)  # 1. 잠그고 상태·소유 확인
         if doc.user_id != user_id:
             raise ScanStateError("NOT_FOUND")
         if doc.status != DocumentStatus.OCR_DONE:
-            raise ScanStateError({DocumentStatus.CONFIRMED: "DOCUMENT_ALREADY_CONFIRMED",
-                                  DocumentStatus.EXPIRED: "DOCUMENT_EXPIRED"}.get(doc.status, "DOCUMENT_NOT_READY"))
-        result = await create_prescription(conn, user_id, body.model_dump(mode="json"), source="ocr",
-                                           background_tasks=background_tasks,
-                                           medical_document_id=scan_id)   # 2. ⚠ 시그니처 민정님 확인
-    await _delete_files_quietly(deps, scan_id)               # 4. 커밋 뒤, 실패해도 성공 응답
-    return {"scan_id": scan_id, "status": DocumentStatus.CONFIRMED.value, **result}   # 5
+            raise ScanStateError(
+                {
+                    DocumentStatus.CONFIRMED: "DOCUMENT_ALREADY_CONFIRMED",
+                    DocumentStatus.EXPIRED: "DOCUMENT_EXPIRED",
+                }.get(doc.status, "DOCUMENT_NOT_READY")
+            )
+        result = await create_prescription(
+            conn,
+            user_id,
+            body.model_dump(mode="json"),
+            source="ocr",
+            background_tasks=background_tasks,
+            medical_document_id=scan_id,
+        )  # 2. ⚠ 시그니처 민정님 확인
+    await _delete_files_quietly(deps, scan_id)  # 4. 커밋 뒤, 실패해도 성공 응답
+    return {"scan_id": scan_id, "status": DocumentStatus.CONFIRMED.value, **result}  # 5
 
 
 async def cancel_scan(deps: Deps, scan_id: int, user_id: int) -> None:
@@ -681,8 +796,8 @@ async def cancel_scan(deps: Deps, scan_id: int, user_id: int) -> None:
         if doc.status == DocumentStatus.CONFIRMED:
             raise ScanStateError("DOCUMENT_ALREADY_CONFIRMED")
         if doc.status == DocumentStatus.EXPIRED:
-            return                                           # 여러 번 눌러도 204
-        await deps.repo.expire(scan_id, conn=conn)           # 행은 남겨 하루 20회에 셈
+            return  # 여러 번 눌러도 204
+        await deps.repo.expire(scan_id, conn=conn)  # 행은 남겨 하루 20회에 셈
     await _delete_files_quietly(deps, scan_id)
 
 
@@ -691,7 +806,7 @@ async def _delete_files_quietly(deps: Deps, scan_id: int) -> None:
         await deps.files.delete_pages(scan_id)
         await deps.repo.mark_pages_deleted(scan_id, deps.now())
     except Exception:
-        pass                                                 # 정리 작업이 다시 지움
+        pass  # 정리 작업이 다시 지움
 
 
 # ---------------------------------------------------------------------------
@@ -700,7 +815,7 @@ async def _delete_files_quietly(deps: Deps, scan_id: int) -> None:
 @dataclass
 class CleanupAction:
     scan_id: int
-    expire: bool        # 3시간 지난 미확정 문서 → expired로 바꾸고 지움
+    expire: bool  # 3시간 지난 미확정 문서 → expired로 바꾸고 지움
     delete_files: bool
 
 
@@ -721,6 +836,6 @@ async def run_cleanup(deps: Deps, candidates: list[ScanDoc]) -> None:
             async with deps.repo.transaction() as conn:
                 doc = await deps.repo.get(a.scan_id, for_update=True, conn=conn)
                 if doc.status in (DocumentStatus.CONFIRMED, DocumentStatus.EXPIRED):
-                    continue                                 # 그사이 확정·취소됨
+                    continue  # 그사이 확정·취소됨
                 await deps.repo.expire(a.scan_id, conn=conn)
         await _delete_files_quietly(deps, a.scan_id)
