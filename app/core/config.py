@@ -33,6 +33,12 @@ class Config(BaseSettings):
     COOKIE_DOMAIN: str = "localhost"
 
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 명세 1장: 액세스 토큰 30분
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
+
+    # 카카오 로그인 (명세 4-1). 값은 카카오 개발자 콘솔 [플랫폼 키] > REST API 키
+    KAKAO_REST_API_KEY: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
+    KAKAO_REDIRECT_URI: str = "http://localhost:5173/auth/kakao/callback"
+    KAKAO_TIMEOUT_SECONDS: float = 5.0
