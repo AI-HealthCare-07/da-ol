@@ -11,7 +11,7 @@ from pathlib import Path
 
 import app.services.scan_service as sp
 from app.dtos.scan import DocumentStatus, DrugMatch, FailReason, MatchStatus
-from app.tests.test_scan_service import NOW, FakeFiles, make_deps
+from app.tests.scan.fakes import NOW, FakeFiles, make_deps
 
 SECRET = "가상정비밀약"  # 로그에 나오면 안 되는 글자
 
@@ -63,7 +63,7 @@ def test_page_delete_failure_logs_type(caplog):
 
 def test_importing_clova_ocr_does_not_read_app_config():
     # 다른 테스트가 이미 app.core를 불러왔을 수 있어 새 프로세스에서 확인
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     code = "import sys, app.services.clova_ocr; print('app.core' in sys.modules)"
     out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
