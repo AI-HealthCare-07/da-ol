@@ -7,6 +7,7 @@ AI A 공용 함수 (API 명세서 6-4)
 
 두 함수 모두 DB·외부 호출이 없는 순수 함수입니다. 같은 입력이면 항상 같은 결과입니다.
 """
+
 from __future__ import annotations
 
 import re
@@ -30,12 +31,22 @@ class DosePerTime(TypedDict):
 
 # 표현 사전 v1: 적힌 단위 → 저장·표시할 단위. 테스트하면서 늘립니다.
 UNIT_ALIASES: dict[str, str] = {
-    "정": "정", "알": "정", "t": "정", "tab": "정", "tablet": "정",
-    "캡슐": "캡슐", "c": "캡슐", "cap": "캡슐", "capsule": "캡슐",
-    "포": "포", "pk": "포",
-    "ml": "mL", "cc": "mL",
+    "정": "정",
+    "알": "정",
+    "t": "정",
+    "tab": "정",
+    "tablet": "정",
+    "캡슐": "캡슐",
+    "c": "캡슐",
+    "cap": "캡슐",
+    "capsule": "캡슐",
+    "포": "포",
+    "pk": "포",
+    "ml": "mL",
+    "cc": "mL",
     "g": "g",
-    "방울": "방울", "gtt": "방울",
+    "방울": "방울",
+    "gtt": "방울",
 }
 
 # 숫자 대신 쓰는 한글 표현
@@ -129,7 +140,7 @@ _SHAPE_RULES: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
-MaskSpan = tuple[int, int, str]   # (시작, 끝, 토큰)
+MaskSpan = tuple[int, int, str]  # (시작, 끝, 토큰)
 
 
 def find_mask_spans(text: str) -> list[MaskSpan]:
@@ -205,7 +216,7 @@ def normalize_drug_name(name: str) -> str:
     """
     if not name:
         return ""
-    s = unicodedata.normalize("NFKC", name).lower()   # ㎎→mg, ㎖→ml, 전각 문자 정리
+    s = unicodedata.normalize("NFKC", name).lower()  # ㎎→mg, ㎖→ml, 전각 문자 정리
     for pattern, repl in _DRUG_UNIT_RULES:
         s = pattern.sub(repl, s)
     # 괄호는 안의 내용까지 지웁니다. 허가정보 이름 뒤에 붙은 성분명('가스모틴정5밀리그램(모사프리드…)')이

@@ -1,5 +1,6 @@
 """명세서 6장 예시(fixtures/scan_examples.json)가 v1 모델과 맞는지 확인합니다.
 명세서 예시를 고치면 examples 파일도 같이 고쳐 주세요."""
+
 import json
 from pathlib import Path
 
