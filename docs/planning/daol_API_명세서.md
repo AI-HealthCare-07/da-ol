@@ -2096,17 +2096,17 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
               "easy_text": "하루 두 번, 아침과 저녁 식사 후 30분에 1캡슐씩 드세요."
             },
             "cautions": [
-              { "item_id": "d1-c1", "text": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
+              { "item_id": "d1-c1", "text": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
             ],
             "side_effects": [
-              { "item_id": "d1-s1", "symptom": "…", "what_to_do": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
+              { "item_id": "d1-s1", "symptom": "…", "what_to_do": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
             ],
             "see_doctor_if": [
-              { "item_id": "d1-h1", "text": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": "fallback" }
+              { "item_id": "d1-h1", "text": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": "fallback" }
             ]
           }
         ],
-        "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐", "data_fetched_at": "2026-11-20" }]
+        "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐", "data_fetched_at": "2026-11-20" }]
       }
     },
     "lifestyle": {
@@ -2181,6 +2181,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
     공공데이터 원문이 비어 있으면 고정 문구를 씁니다. `easy_text`(먹는 법)는 코드 틀로 만들어 `fallback` 대상이 아닙니다.
   - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음). 가이드를 만든 뒤에 건강 프로필을 입력했으면(`GET /users/me/health-profile`의 `is_registered: true`) 이 문구 대신 "입력한 건강 프로필은 다음 처방 가이드부터 반영돼요"를 표시합니다. 1차는 다시 만들기가 없어서 이미 만든 가이드는 바꾸지 않습니다(GUIDE-005 2차, 4장 `PUT /users/me/health-profile` 비고와 같음) (문구 ✅ 11/23 설아, 와이어프레임 D-2 반영)
   - `content.sources`는 화면 하단 출처 목록입니다. 문장별 출처에서 겹치는 것을 뺀 목록이고, 실제로 문장에 쓴 근거만 넣습니다(GUIDE-003).
+  - 출처 하나는 `{"drug_id" 또는 "rag_document_id", "name"}`입니다. 약 설명(e약은요·허가정보) 근거는 `drugs`를 바로 읽으므로 `drug_id`, 생활습관·질환 관리 자료 근거는 `rag_documents`의 `rag_document_id`를 씁니다(ERD `rag_documents`·`rag_chunks`, 11/26). ERD `guides.content` 노트("근거(drug_id 또는 rag_document_id)")와 같습니다. 
   - 면책 문구는 `disclaimer` 값을 그대로 고정 표시합니다(GUIDE-006).
 
 ### 7-2. [POST] /api/v1/prescriptions/{prescription_id}/guides/retry
@@ -2306,7 +2307,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
   | 1 | `emergency` | AI | 응급 표현이 있을 때, LLM보다 먼저 | `{"type": "physical", "call": "119", "text": "…"}` 또는 `{"type": "self_harm", "call": "109", "text": "…"}`. `self_harm`이면 답변 없이 바로 `done` |
   | 1' | `out_of_scope` | AI | 답할 수 없는 질문 | `{"type": "diagnosis" / "prescription_change" / "unrelated", "text": "…"}` → 바로 `done` |
   | 2 | `delta` | AI | 답변 글자 조각(여러 번) | `{"text": "지금 드시는"}` |
-  | 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상정"}]}` |
+  | 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"drug_id": 1204, "name": "의약품개요정보(e약은요): 가상정"}]}`. 약 근거는 `drug_id`, 생활습관·질환 자료 근거는 `rag_document_id` |
   | 4 | `done` | API | 마지막 | `{"message_id": 812, "show_profile_link": false}` |
   | - | `error` | AI | 도중에 실패 | `{"code": "EXTERNAL_API_ERROR", "message": "답변을 불러오지 못했어요. 다시 보내기를 눌러 주세요"}` |
 
@@ -2323,7 +2324,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
   data: {"text": "지금 드시는 약과 …"}
 
   event: sources
-  data: {"items": [{"rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상정"}]}
+  data: {"items": [{"drug_id": 1204, "name": "의약품개요정보(e약은요): 가상정"}]}
 
   event: done
   data: {"message_id": 812, "show_profile_link": false}
