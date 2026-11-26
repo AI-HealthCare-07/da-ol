@@ -359,7 +359,9 @@ def build_scan_drug(
 
     try:
         dosage = instructions.parse(llm.instruction_text, llm.times_per_day, start_date)
-    except Exception:
+    except Exception as e:
+        # 메시지에는 복용법 글자가 섞일 수 있어 에러 종류 이름만 남김
+        logger.warning("instruction parse failed, fallback used: error=%s", type(e).__name__)
         dosage = fallback_dosage(llm.times_per_day, start_date)
     if is_oral is False:
         # 먹는 약이 아니면 확정 때 빠지므로(6-2 is_oral 표) 복용 조건 확인을 요구하지 않음
@@ -507,8 +509,10 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
         return
     except ScanFailed as e:
         await _fail_unless_expired(deps, scan_id, e.reason)
-    except Exception:
-        # 예외 메시지·스택에 OCR 글자가 섞이지 않게 로그는 사유 코드만 남기기
+    except Exception as e:
+        # 예상 못 한 에러. 메시지·스택에 OCR 글자가 섞일 수 있어 문서 번호와 에러 종류 이름만 남김
+        # (logger.exception·exc_info 금지)
+        logger.warning("scan job failed: scan_id=%s error=%s", scan_id, type(e).__name__)
         await _fail_unless_expired(deps, scan_id, FailReason.OCR_ERROR)
 
 
@@ -725,7 +729,8 @@ def _new_line(line_no: int, start_date: date) -> dict:
 def _rebuild_dosage(drug: dict, times: int | None, start_date: date, instructions: InstructionParser) -> dict:
     try:
         return instructions.parse(drug.get("instruction_text"), times, start_date).model_dump(mode="json")
-    except Exception:
+    except Exception as e:
+        logger.warning("instruction parse failed, fallback used: error=%s", type(e).__name__)
         return fallback_dosage(times, start_date).model_dump(mode="json")
 
 
@@ -805,8 +810,9 @@ async def _delete_files_quietly(deps: Deps, scan_id: int) -> None:
     try:
         await deps.files.delete_pages(scan_id)
         await deps.repo.mark_pages_deleted(scan_id, deps.now())
-    except Exception:
-        pass  # 정리 작업이 다시 지움
+    except Exception as e:
+        # 정리 작업이 다시 지우지만, 계속 실패하면 개인정보가 담긴 사진이 남으니 기록은 남김
+        logger.warning("page file delete failed: scan_id=%s error=%s", scan_id, type(e).__name__)
 
 
 # ---------------------------------------------------------------------------
