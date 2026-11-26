@@ -151,7 +151,7 @@ PR을 올리기 전에 아래 스크립트로 확인해주세요.
 
 ```bash
 ./scripts/ci/run_test.sh          # 테스트 (Pytest)
-./scripts/ci/code_fommatting.sh   # 코드 포맷팅 (Ruff)
+./scripts/ci/code_formatting.sh   # 코드 포맷팅 (Ruff)
 ./scripts/ci/check_mypy.sh        # 정적 타입 검사 (Mypy)
 ```
 
