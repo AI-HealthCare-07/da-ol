@@ -1,8 +1,8 @@
 from tortoise import fields, models
 
-from app.models.enums import Gender, SignupType, UserStatus
+from app.models.enums import ConsentType, Gender, SignupType, UserStatus
 
-__all__ = ["Gender", "User"]
+__all__ = ["Gender", "RefreshToken", "User", "UserConsent"]
 
 
 class User(models.Model):
@@ -29,3 +29,35 @@ class User(models.Model):
 
     class Meta:
         table = "users"
+
+
+class UserConsent(models.Model):
+    """약관·정보 동의 (ERD v2 user_consents). 동의 철회 시 agreed=False로 갱신합니다."""
+
+    id = fields.BigIntField(primary_key=True)
+    user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+        "models.User", related_name="consents", on_delete=fields.CASCADE
+    )
+    consent_type = fields.CharEnumField(ConsentType, max_length=30)
+    agreed = fields.BooleanField()
+    agreed_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "user_consents"
+        unique_together = (("user", "consent_type"),)
+
+
+class RefreshToken(models.Model):
+    """리프레시 토큰 (ERD v2 refresh_tokens). 원문은 쿠키로만 주고, DB에는 SHA-256 해시만 저장합니다(명세 4-1)."""
+
+    id = fields.BigIntField(primary_key=True)
+    user: fields.ForeignKeyRelation[User] = fields.ForeignKeyField(
+        "models.User", related_name="refresh_tokens", on_delete=fields.CASCADE
+    )
+    token_hash = fields.CharField(max_length=255, unique=True, description="SHA-256 hex")
+    expires_at = fields.DatetimeField(description="발급 + 14일")
+    revoked_at = fields.DatetimeField(null=True, description="로그아웃·재발급(회전)·탈퇴 시 무효화")
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "refresh_tokens"

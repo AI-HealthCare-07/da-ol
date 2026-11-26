@@ -41,6 +41,7 @@ from app.dtos.scan import (
     DocType,
     DocumentStatus,
     Dosage,
+    DosageEdit,
     Dose,
     DosePerTimeField,
     DrugMatch,
@@ -50,6 +51,7 @@ from app.dtos.scan import (
     ParsedBy,
     ScanConfirmedResponse,
     ScanDrug,
+    ScanDrugEdit,
     ScanEditRequest,
     ScanExpiredResponse,
     ScanOcrDoneResponse,
@@ -359,7 +361,9 @@ def build_scan_drug(
 
     try:
         dosage = instructions.parse(llm.instruction_text, llm.times_per_day, start_date)
-    except Exception:
+    except Exception as e:
+        # 메시지에는 복용법 글자가 섞일 수 있어 에러 종류 이름만 남김
+        logger.warning("instruction parse failed, fallback used: error=%s", type(e).__name__)
         dosage = fallback_dosage(llm.times_per_day, start_date)
     if is_oral is False:
         # 먹는 약이 아니면 확정 때 빠지므로(6-2 is_oral 표) 복용 조건 확인을 요구하지 않음
@@ -507,8 +511,10 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
         return
     except ScanFailed as e:
         await _fail_unless_expired(deps, scan_id, e.reason)
-    except Exception:
-        # 예외 메시지·스택에 OCR 글자가 섞이지 않게 로그는 사유 코드만 남기기
+    except Exception as e:
+        # 예상 못 한 에러. 메시지·스택에 OCR 글자가 섞일 수 있어 문서 번호와 에러 종류 이름만 남김
+        # (logger.exception·exc_info 금지)
+        logger.warning("scan job failed: scan_id=%s error=%s", scan_id, type(e).__name__)
         await _fail_unless_expired(deps, scan_id, FailReason.OCR_ERROR)
 
 
@@ -551,7 +557,7 @@ async def get_scan(deps: Deps, scan_id: int, *, fill_default_meals: Callable[[li
         return ScanUploadedResponse(
             scan_id=scan_id,
             status=doc.status,
-            step=doc.step,
+            step=doc.step or ScanStep.READING,  # 업로드 직후 작업이 아직 step을 못 채웠으면 '읽는 중'
             doc_type=doc.doc_type,
             image_delete_due_at=doc.image_delete_due_at,
         )
@@ -595,7 +601,112 @@ async def lookup_edit_drugs(catalog: DrugCatalog, req: ScanEditRequest) -> dict[
     return await catalog.get_many(ids) if ids else {}
 
 
-def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 PR)
+# PATCH에서 null을 보낼 수 없는 칸. 프론트는 안 바꾼 칸을 빼고 보내므로 null은 프론트 버그 → 422 (6장, 11/26 설아)
+NOT_NULL_DRUG_FIELDS = ("dose_per_time", "dosage")
+
+
+def _user_field(value: Any) -> dict:
+    """회원이 고친 칸: confidence=None, needs_check=False."""
+    return {"value": value, "confidence": None, "needs_check": False}
+
+
+def _edit_doc_fields(result: dict, req: ScanEditRequest) -> None:
+    sent = req.model_dump(exclude_unset=True)
+    if "hospital_name" in sent:
+        result["hospital_name"] = _user_field(req.hospital_name)
+    if "prescribed_date" in sent:
+        result["prescribed_date"] = _user_field(req.prescribed_date.isoformat() if req.prescribed_date else None)
+
+
+def _null_errors(e: dict, path: str) -> dict[str, str]:
+    return {
+        f"{path}.{name}": "이 칸은 null로 보낼 수 없어요. 바꾸지 않을 칸은 빼고 보내 주세요"
+        for name in NOT_NULL_DRUG_FIELDS
+        if name in e and e[name] is None
+    }
+
+
+def _edit_match(drug: dict, drug_id: int | None, drug_lookup: dict[int, tuple[str, bool | None]]) -> bool:
+    """약 매칭을 바꿉니다. 없는 약이면 False."""
+    if drug_id is None:
+        drug["match"] = {"status": MatchStatus.NONE.value, "drug_id": None, "candidates": []}
+        drug["is_oral"] = None
+        return True
+    found = drug_lookup.get(drug_id)
+    if found is None:
+        return False
+    drug["match"] = {"status": MatchStatus.EXACT.value, "drug_id": drug_id, "candidates": []}
+    drug["is_oral"] = found[1]
+    return True
+
+
+def _edit_dose(drug: dict, text: str) -> None:
+    """용량을 글자로 고침. 빈 글자("")는 회원이 칸을 비운 것 → 읽을 수 없는 용량과 같게 처리."""
+    dose = parse_dose_text(text)
+    # 명세서 6-2 예외: 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없거나 0.25 미만인 용량은 계속 표시
+    drug["dose_per_time"] = {
+        **dose,
+        "confidence": None,
+        "needs_check": not dose["parsed"] or is_suspicious_dose(dose),
+        "edited": True,
+    }
+
+
+def _edit_dosage(drug: dict, edit: DosageEdit, path: str, errors: dict[str, str]) -> None:
+    """회원이 고른 복용 조건 → parsed_by=user, needs_confirm=False."""
+    for j, d in enumerate(edit.doses or []):
+        if d.timing is not None and d.timing not in CONFIRM_ALLOWED_TIMINGS:
+            errors[f"{path}.dosage.doses[{j}].timing"] = "식전·식후·취침 전 중에서 골라 주세요"
+    new = dict(drug["dosage"])
+    if edit.as_needed is not None:
+        new["as_needed"] = edit.as_needed
+    if edit.doses is not None:
+        new["doses"] = [d.model_dump(mode="json") for d in edit.doses]
+    new.update(parsed_by=ParsedBy.USER.value, needs_confirm=False)
+    drug["dosage"] = new
+
+
+def _refresh_rule_dosage(drug: dict, e: dict, start_date: date, instructions: InstructionParser) -> None:
+    """사전으로 만든 복용 조건(parsed_by=rule)을 다시 맞춤. 회원이 고른 조건(user)은 건드리지 않음.
+    - 1일 횟수가 바뀌면 회차 수가 바뀌므로 다시 만듦
+    - 약이 바뀌면 먹는 약 여부가 달라질 수 있으니 다시 만듦(needs_confirm 되돌리기)
+    - 먹는 약이 아니면 확정 때 빠지므로 복용 조건 확인을 요구하지 않음(6-2 is_oral 표)"""
+    if "dosage" not in e and drug["dosage"]["parsed_by"] == ParsedBy.RULE.value:
+        if "times_per_day" in e or "drug_id" in e:
+            drug["dosage"] = _rebuild_dosage(drug, drug["times_per_day"]["value"], start_date, instructions)
+    if drug["is_oral"] is False:
+        drug["dosage"] = {**drug["dosage"], "needs_confirm": False}
+
+
+def _edit_drug(
+    drug: dict,
+    edit: ScanDrugEdit,
+    e: dict,
+    path: str,
+    *,
+    drug_lookup: dict[int, tuple[str, bool | None]],
+    instructions: InstructionParser,
+    start_date: date,
+    errors: dict[str, str],
+) -> None:
+    """약 한 줄에 고친 칸을 반영합니다. 보낸 칸(e)만 바꿉니다."""
+    if "drug_name" in e:
+        drug["drug_name"] = _user_field(edit.drug_name)
+    if "drug_id" in e and not _edit_match(drug, edit.drug_id, drug_lookup):
+        errors[f"{path}.drug_id"] = "없는 약이에요. 다시 검색해 주세요"
+        return
+    if edit.dose_per_time is not None:
+        _edit_dose(drug, edit.dose_per_time.text)
+    if "total_days" in e:
+        drug["total_days"] = _user_field(edit.total_days)
+    if "times_per_day" in e:
+        drug["times_per_day"] = _user_field(edit.times_per_day)
+    if edit.dosage is not None:
+        _edit_dosage(drug, edit.dosage, path, errors)
+    _refresh_rule_dosage(drug, e, start_date, instructions)
+
+
+def apply_edits(
     parsed: dict,
     req: ScanEditRequest,
     *,
@@ -607,15 +718,7 @@ def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 
     용량을 글자로 고치면 parse_dose_text()로 다시 채우고, 복용 조건을 고르면 parsed_by=user."""
     result = {**parsed, "drugs": [dict(d) for d in parsed["drugs"]]}
     errors: dict[str, str] = {}
-
-    def user(v):
-        return {"value": v, "confidence": None, "needs_check": False}
-
-    sent = req.model_dump(exclude_unset=True)
-    if "hospital_name" in sent:
-        result["hospital_name"] = user(req.hospital_name)
-    if "prescribed_date" in sent:
-        result["prescribed_date"] = user(req.prescribed_date.isoformat() if req.prescribed_date else None)
+    _edit_doc_fields(result, req)
 
     by_no = {d["line_no"]: d for d in result["drugs"]}
     to_delete: set[int] = set()
@@ -625,6 +728,9 @@ def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 
     for i, edit in enumerate(req.drugs or []):
         path = f"drugs[{i}]"
         e = edit.model_dump(exclude_unset=True)
+        if null_errors := _null_errors(e, path):
+            errors.update(null_errors)
+            continue
 
         if edit.line_no is None:  # 새 줄
             if not edit.drug_name:
@@ -643,51 +749,16 @@ def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 
         if e.get("deleted"):
             to_delete.add(drug["line_no"])
             continue
-        if "drug_name" in e:
-            drug["drug_name"] = user(edit.drug_name)
-        if "drug_id" in e:
-            if edit.drug_id is None:
-                drug["match"] = {"status": MatchStatus.NONE.value, "drug_id": None, "candidates": []}
-                drug["is_oral"] = None
-            else:
-                found = drug_lookup.get(edit.drug_id)
-                if found is None:
-                    errors[f"{path}.drug_id"] = "없는 약이에요. 다시 검색해 주세요"
-                    continue
-                drug["match"] = {"status": MatchStatus.EXACT.value, "drug_id": edit.drug_id, "candidates": []}
-                drug["is_oral"] = found[1]
-        if "dose_per_time" in e:
-            dose = parse_dose_text(edit.dose_per_time.text)
-            # 명세서 6-2 예외: 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없는 용량은 계속 표시
-            drug["dose_per_time"] = {
-                **dose,
-                "confidence": None,
-                "needs_check": not dose["parsed"] or is_suspicious_dose(dose),
-                "edited": True,
-            }
-        if "total_days" in e:
-            drug["total_days"] = user(edit.total_days)
-        if "times_per_day" in e:
-            drug["times_per_day"] = user(edit.times_per_day)
-            if "dosage" not in e and drug["dosage"]["parsed_by"] == ParsedBy.RULE.value:
-                # 회차 수가 바뀌므로 사전 결과를 새 횟수로 다시 만듦
-                drug["dosage"] = _rebuild_dosage(drug, edit.times_per_day, start_date, instructions)
-        if "dosage" in e:
-            for j, d in enumerate(edit.dosage.doses or []):
-                if d.timing is not None and d.timing not in CONFIRM_ALLOWED_TIMINGS:
-                    errors[f"{path}.dosage.doses[{j}].timing"] = "식전·식후·취침 전 중에서 골라 주세요"
-            new = dict(drug["dosage"])
-            if edit.dosage.as_needed is not None:
-                new["as_needed"] = edit.dosage.as_needed
-            if edit.dosage.doses is not None:
-                new["doses"] = [d.model_dump(mode="json") for d in edit.dosage.doses]
-            new.update(parsed_by=ParsedBy.USER.value, needs_confirm=False)
-            drug["dosage"] = new
-        if "drug_id" in e and "dosage" not in e and drug["dosage"]["parsed_by"] == ParsedBy.RULE.value:
-            # 약이 바뀌면 먹는 약 여부가 달라질 수 있으니 사전 결과를 다시 만듦(needs_confirm 되돌리기)
-            drug["dosage"] = _rebuild_dosage(drug, drug["times_per_day"]["value"], start_date, instructions)
-        if drug["is_oral"] is False:
-            drug["dosage"] = {**drug["dosage"], "needs_confirm": False}
+        _edit_drug(
+            drug,
+            edit,
+            e,
+            path,
+            drug_lookup=drug_lookup,
+            instructions=instructions,
+            start_date=start_date,
+            errors=errors,
+        )
 
     if errors:
         raise ScanValidationError(errors)
@@ -725,7 +796,8 @@ def _new_line(line_no: int, start_date: date) -> dict:
 def _rebuild_dosage(drug: dict, times: int | None, start_date: date, instructions: InstructionParser) -> dict:
     try:
         return instructions.parse(drug.get("instruction_text"), times, start_date).model_dump(mode="json")
-    except Exception:
+    except Exception as e:
+        logger.warning("instruction parse failed, fallback used: error=%s", type(e).__name__)
         return fallback_dosage(times, start_date).model_dump(mode="json")
 
 
@@ -805,8 +877,9 @@ async def _delete_files_quietly(deps: Deps, scan_id: int) -> None:
     try:
         await deps.files.delete_pages(scan_id)
         await deps.repo.mark_pages_deleted(scan_id, deps.now())
-    except Exception:
-        pass  # 정리 작업이 다시 지움
+    except Exception as e:
+        # 정리 작업이 다시 지우지만, 계속 실패하면 개인정보가 담긴 사진이 남으니 기록은 남김
+        logger.warning("page file delete failed: scan_id=%s error=%s", scan_id, type(e).__name__)
 
 
 # ---------------------------------------------------------------------------

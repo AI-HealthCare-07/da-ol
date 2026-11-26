@@ -84,7 +84,7 @@ SSE(`text/event-stream`)로 내려줍니다. 이벤트 이름과 `data`는 백�
 | 1 | `emergency` | AI | 응급 표현이 있을 때, LLM보다 먼저 | `{"type": "physical" 또는 "self_harm", "call": "119" 또는 "109", "text": "..."}`. `self_harm`이면 바로 `done` |
 | 1' | `out_of_scope` | AI | 답할 수 없는 질문 | `{"type": "diagnosis" / "prescription_change" / "unrelated", "text": "..."}` → 바로 `done` |
 | 2 | `delta` | AI | 답변 글자 조각(여러 번) | `{"text": "지금 드시는"}` |
-| 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"rag_document_id": 15, "name": "..."}]}` |
+| 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"drug_id": 1204, "name": "..."}]}`. 약 근거는 `drug_id`, 생활습관·질환 자료 근거는 `rag_document_id` (7-1 비고) |
 | 4 | `done` | API | 마지막 | `{"message_id": 812, "show_profile_link": false}` |
 | - | `error` | AI | 도중에 실패 | `{"code": "EXTERNAL_API_ERROR", "message": "답변을 불러오지 못했어요. 다시 보내기를 눌러 주세요"}`. 사용량 차감 규칙은 2차(CHAT-006) |
 
@@ -1485,6 +1485,12 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | └ `offset_min` | 식전·식후 몇 분. 원문에 없으면 `null` |
 | `cycle` | `{type, start_date}`. `type`은 1차에 `daily`만 시간표를 계산합니다(`every_other_day`·`weekly`는 인식되면 `needs_confirm: true`) → 민정님 확인. `start_date`는 처방일을 읽었으면 처방일, 아니면 오늘 |
 
+**빠진 약**(이슈 #45, 진행 중): LLM이 정리하면서 약 줄을 통째로 빠뜨리면 `drugs`에 그 줄이 없어서 칸 신뢰도(`needs_check`)로는 알 수 없습니다. 그래서 OCR 줄과 LLM 결과를 맞대 봅니다(`app/services/missing_drugs.py`).
+
+- 어떤 약(`line_ref`)과도 연결되지 않은 줄 중 "한글 2자 이상 + 제형(정·캡슐·시럽·액·연고 등)으로 끝나는 단어"와 "용량·횟수·일수(`1정`, `3회`, `30일` 등)"가 같이 있는 줄을 고르고, 그 약 이름이 약 DB(`GET /drugs`와 같은 검색)에 있을 때만 "빠진 약일 수 있음"으로 봅니다.
+- 잡는 것: OCR은 읽었는데 LLM이 빠뜨린 약. **못 잡는 것: OCR이 아예 못 읽은 줄**(대조할 줄이 없음).
+- 확정은 막지 않습니다. 응답 칸(`possibly_missing`)과 화면 문구("빠진 약이 있을 수 있어요" + [+ 약 추가하기])는 프론트와 정한 뒤 이 표에 추가합니다.
+
 ### 6-3. 처방 등록 에러 코드
 
 1-1 공통 코드에 더해 이 영역에서만 쓰는 코드입니다.
@@ -1671,6 +1677,10 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 - Request Body: 아래 두 가지 중 하나만 보냅니다. 둘을 함께 보내면 `VALIDATION_ERROR`입니다.
 
   ① 고친 값 저장 → `200`. 바꾼 칸만 보냅니다. 약 줄은 `line_no`로 가리키고, 새 줄은 `line_no` 없이, 지울 줄은 `"deleted": true`로 보냅니다.
+  - 안 바꾼 칸은 요청에서 **빼고** 보냅니다. `dose_per_time`·`dosage`에는 `null`을 보내지 않고, 오면 `VALIDATION_ERROR`(422)입니다(`fields`: `drugs[1].dose_per_time`처럼 어느 줄·칸인지). `null`은 프론트 버그라 무시하지 않고 바로 드러내기 위함입니다(11/26 설아).
+  - 1회 용량 칸을 비우면 `"dose_per_time": { "text": "" }`로 보냅니다. 읽을 수 없는 용량과 같게 `parsed: false`, `needs_check: true`, `edited: true`가 됩니다.
+  - 복용 조건을 "선택 안 함"으로 되돌리는 동작은 없습니다. 한번 고르면 다른 조건으로 바꾸기만 합니다.
+  - `drug_id: null`(약 매칭 해제)과 `times_per_day: null`(필요시 약처럼 횟수 비우기)은 뜻이 있는 값이라 그대로 받습니다.
 
   ```json
   {
@@ -1702,10 +1712,10 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   ```json
   { "scan_id": 42, "status": "uploaded", "step": "structuring", "doc_type": "pill_envelope" }
   ```
-- 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing` → `fields`의 칸 표시 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
+- 에러: `NOT_FOUND`(404) 없는 문서·다른 회원의 문서 / `VALIDATION_ERROR`(422) 없는 `line_no`·없는 `drug_id`·1차에서 받지 않는 `timing`·`dose_per_time`/`dosage`에 `null` → `fields`의 칸 표시. 한 칸이라도 잘못되면 아무것도 저장하지 않음 / `DOCUMENT_NOT_READY`(409) 아직 읽는 중 → 로딩 화면 유지 / `DOCUMENT_ALREADY_CONFIRMED`(409) → 처방 상세로 이동 / `DOCUMENT_EXPIRED`(410) → B-1로 이동
 - 비고:
-  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(용량은 필수 칸이 아니라 확정은 막지 않음). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
-  - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다.
+  - 고친 칸은 `confidence: null`, `needs_check: false`가 됩니다. 단, 고친 용량을 표현 사전으로 읽을 수 없거나(`parsed: false`) 정·캡슐·포 0.25 미만이면 `needs_check: true`로 두어 노란색 표시를 유지합니다(읽을 수 없는 용량도 확정할 수 있지만, 빈칸으로는 확정할 수 없음(4장 확정 검사)). `dosage`를 고르면 `parsed_by: "user"`, `needs_confirm: false`가 됩니다.
+  - 용량을 글자로 고치면(`{"text": "5mL"}`) 서버가 표현 사전으로 `min`·`max`·`unit`·`parsed`를 다시 채웁니다. 빈 글자(`{"text": ""}`)는 회원이 칸을 비운 것으로 보고 읽을 수 없는 용량과 같게 둡니다.
   - 문서 종류를 다시 고르면 그동안 고친 값은 지우고 처음부터 다시 정리합니다. 확인 화면에서 "고친 내용이 사라져요"를 먼저 물어 주세요.
   - 문서 종류 다시 고르기는 `ocr_done`과 `ocr_failed`(`fail_reason`이 `no_drug_found`·`structure_error`일 때)에서만 받습니다.
   - 꼭 이 API로 저장하지 않고 확정 API에 최종 값을 한 번에 보내도 됩니다. 이 API는 새로고침·뒤로 가기에 대비한 중간 저장용입니다.
@@ -2016,7 +2026,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
   - 1차는 다시 쓰기가 없어서(1차 축소안) 검사는 가이드마다 한 번뿐이고, 틀린 문장에는 항상 `fallback`을 표시합니다. 그래서 `attempt_no`·`is_last_attempt` 입력은 두지 않습니다. 7-7 검증 호출에서도 두 인자를 빼 주세요 → 유정님 확인. 다시 쓰기는 2차에 `attempt_no`와 함께 추가합니다.
   - 약 단위 실패(`value_mismatch`·`text_number_mismatch`·`missing_value`·`missing_drug`)는 코드 틀 때문에 생기지 않아야 합니다. 생기면 7-7 합의대로 코드 오류로 기록하고 그 가이드를 `failed`로 처리합니다. 그래서 약 단위 대체 칸(`fallback_drug_ids`)은 두지 않습니다.
   - 문장을 무엇으로 바꾸는지는 7-1 비고 표를 따릅니다. 검증 함수는 표시만 하고 글은 바꾸지 않습니다.
-  - 칸 이름은 7장에 맞췄습니다(AI 문서 4-2의 `prescription_drug_id` → `prescription_item_id`, `guide_job_id` → `guide_id`). 근거 출처 대조(VERI-003 2차)는 7장의 `rag_document_id`를 씁니다.
+  - 칸 이름은 7장에 맞췄습니다(AI 문서 4-2의 `prescription_drug_id` → `prescription_item_id`, `guide_job_id` → `guide_id`). 근거 출처 대조(VERI-003 2차)는 7장 출처의 `drug_id`(약 근거)·`rag_document_id`(생활습관·질환 자료 근거)를 씁니다.
   - 목표 시간: 1건 1초(내부 목표), 5초 이내(NFR-014). 7-7의 30초 안에 검사 시간이 포함되므로 `duration_ms`를 꼭 채웁니다.
   - 1차 측정용으로 가이드마다 검사 시간·실패 종류·프롬프트 버전(`guide_medication_v1` / `guide_lifestyle_v1`)을 서버 로그에 남깁니다.
   - 금지 표현·약 이름 목록은 `check_full()`(6-4)과 같은 규칙 파일(`verify_rules_v1`)을 씁니다.
@@ -2096,17 +2106,17 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
               "easy_text": "하루 두 번, 아침과 저녁 식사 후 30분에 1캡슐씩 드세요."
             },
             "cautions": [
-              { "item_id": "d1-c1", "text": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
+              { "item_id": "d1-c1", "text": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
             ],
             "side_effects": [
-              { "item_id": "d1-s1", "symptom": "…", "what_to_do": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
+              { "item_id": "d1-s1", "symptom": "…", "what_to_do": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": null }
             ],
             "see_doctor_if": [
-              { "item_id": "d1-h1", "text": "…", "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": "fallback" }
+              { "item_id": "d1-h1", "text": "…", "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐" }], "check": "fallback" }
             ]
           }
         ],
-        "sources": [{ "rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상캡슐", "data_fetched_at": "2026-11-20" }]
+        "sources": [{ "drug_id": 1203, "name": "의약품개요정보(e약은요): 가상캡슐", "data_fetched_at": "2026-11-20" }]
       }
     },
     "lifestyle": {
@@ -2181,6 +2191,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
     공공데이터 원문이 비어 있으면 고정 문구를 씁니다. `easy_text`(먹는 법)는 코드 틀로 만들어 `fallback` 대상이 아닙니다.
   - `used_default_profile: true`이면 상단에 "건강 프로필을 입력하면 더 정확한 안내를 받을 수 있어요"를 표시합니다(GUIDE-002). 기준은 가이드를 만들 때 `health_profiles` 행이 있었는지입니다(4장 `is_registered`와 같음). 가이드를 만든 뒤에 건강 프로필을 입력했으면(`GET /users/me/health-profile`의 `is_registered: true`) 이 문구 대신 "입력한 건강 프로필은 다음 처방 가이드부터 반영돼요"를 표시합니다. 1차는 다시 만들기가 없어서 이미 만든 가이드는 바꾸지 않습니다(GUIDE-005 2차, 4장 `PUT /users/me/health-profile` 비고와 같음) (문구 ✅ 11/23 설아, 와이어프레임 D-2 반영)
   - `content.sources`는 화면 하단 출처 목록입니다. 문장별 출처에서 겹치는 것을 뺀 목록이고, 실제로 문장에 쓴 근거만 넣습니다(GUIDE-003).
+  - 출처 하나는 `{"drug_id" 또는 "rag_document_id", "name"}`입니다. 약 설명(e약은요·허가정보) 근거는 `drugs`를 바로 읽으므로 `drug_id`, 생활습관·질환 관리 자료 근거는 `rag_documents`의 `rag_document_id`를 씁니다(ERD `rag_documents`·`rag_chunks`, 11/26). ERD `guides.content` 노트("근거(drug_id 또는 rag_document_id)")와 같습니다. 
   - 면책 문구는 `disclaimer` 값을 그대로 고정 표시합니다(GUIDE-006).
 
 ### 7-2. [POST] /api/v1/prescriptions/{prescription_id}/guides/retry
@@ -2306,7 +2317,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
   | 1 | `emergency` | AI | 응급 표현이 있을 때, LLM보다 먼저 | `{"type": "physical", "call": "119", "text": "…"}` 또는 `{"type": "self_harm", "call": "109", "text": "…"}`. `self_harm`이면 답변 없이 바로 `done` |
   | 1' | `out_of_scope` | AI | 답할 수 없는 질문 | `{"type": "diagnosis" / "prescription_change" / "unrelated", "text": "…"}` → 바로 `done` |
   | 2 | `delta` | AI | 답변 글자 조각(여러 번) | `{"text": "지금 드시는"}` |
-  | 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상정"}]}` |
+  | 3 | `sources` | AI | 답변이 끝났을 때 | `{"items": [{"drug_id": 1204, "name": "의약품개요정보(e약은요): 가상정"}]}`. 약 근거는 `drug_id`, 생활습관·질환 자료 근거는 `rag_document_id` |
   | 4 | `done` | API | 마지막 | `{"message_id": 812, "show_profile_link": false}` |
   | - | `error` | AI | 도중에 실패 | `{"code": "EXTERNAL_API_ERROR", "message": "답변을 불러오지 못했어요. 다시 보내기를 눌러 주세요"}` |
 
@@ -2323,7 +2334,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
   data: {"text": "지금 드시는 약과 …"}
 
   event: sources
-  data: {"items": [{"rag_document_id": 15, "name": "의약품개요정보(e약은요): 가상정"}]}
+  data: {"items": [{"drug_id": 1204, "name": "의약품개요정보(e약은요): 가상정"}]}
 
   event: done
   data: {"message_id": 812, "show_profile_link": false}
@@ -2419,4 +2430,6 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
 | 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd_v2.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
 | 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
+| 2026-11-26 | 유정 | 출처 칸 맞춤(ERD #41, 약 정보는 drugs 직접 조회): 7-1·7-6 예시의 약 출처 `rag_document_id` → `drug_id`, 7-1 비고에 출처 규칙 추가, 1-3 SSE 표 `sources` 예시와 6장 근거 대조 문장도 같게 맞춤(설아님 리뷰) |
 | 2026-11-26 | 채민 | 6-2 확인 표시 규칙 추가: 정·캡슐·포 1회 용량 0.25 미만이면 `needs_check: true`(OCR·고친 용량), `is_oral: false` 줄은 `dosage.needs_confirm: false` |
+| 2026-11-26 | 채민 | `PATCH /scans`: `dose_per_time`·`dosage`에 `null`이 오면 422, 용량을 비우면 `{"text": ""}`로 보냄(읽을 수 없는 용량과 같게), 안 바꾼 칸은 빼고 보냄(설아님과 정함) |
