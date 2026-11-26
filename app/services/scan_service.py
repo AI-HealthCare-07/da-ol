@@ -437,6 +437,8 @@ async def _retry(make_call: Callable[[], Awaitable], *, retries: int, fail: Fail
             return await asyncio.wait_for(make_call(), timeout)
         except Exception:
             if attempt == retries:
+                # from e 금지: LLM 검증 에러 메시지에 처방 내용(약 이름·복용법)이 들어 있어
+                # 예외를 연결하면 로그·스택에 남을 수 있음. 원인은 사유 코드(fail)로만 남김
                 raise ScanFailed(fail) from None
 
 
