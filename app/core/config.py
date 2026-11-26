@@ -37,6 +37,10 @@ class Config(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
 
+    # CLOVA General OCR (6장 처방 등록). 콘솔 Domain > API Gateway 연동의 Invoke URL과 Secret Key
+    CLOVA_OCR_URL: str = ""
+    CLOVA_OCR_SECRET: str = ""
+
     # 카카오 로그인 (명세 4-1). 값은 카카오 개발자 콘솔 [플랫폼 키] > REST API 키
     KAKAO_REST_API_KEY: str = ""
     KAKAO_CLIENT_SECRET: str = ""

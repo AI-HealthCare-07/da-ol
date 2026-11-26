@@ -15,23 +15,19 @@ PR #24 테스트 처방 이미지(`docs/test-prescriptions/`)를 본떠 만든 *
 | `no_text.json` | — | 글자가 거의 없는 사진(`no_text`) |
 | `infer_failure.json` | — | `inferResult: FAILURE` |
 
-## 실제 응답으로 바꾸기
+## 실제 응답 (`real/`)
 
-CLOVA 키가 생기면 같은 이미지로 실제 응답을 받아 같은 파일 이름으로 바꿔 넣고, `test_clova_ocr.py`의 기대값을 맞춰 주세요.
+위 예시 fixture는 파싱 규칙을 정확히 통제해서 확인하는 용도라 그대로 둡니다.
+실제 CLOVA 응답은 `real/caseNN.json`에 따로 두고 `test_clova_real.py`에서 확인합니다
+(줄 번호·단어 위치, 약 이름, 실제 응답에서의 마스킹).
+
+| 파일 | 이미지 |
+| --- | --- |
+| `real/case04.json` | Case 04 처방전(표) |
+| `real/case07.json` | Case 07 칸 안 줄바꿈 |
+| `real/case10.json` | Case 10 흐린 줄 |
+| `real/case11.json` | Case 11 약봉투 (`김다올 님 귀하`) |
+| `real/case12.json` | Case 12 마스킹 (두 줄로 나뉜 연락처) |
+
+실제 응답은 `scripts/ocr/run_clova_test_prescriptions.py --save-raw`로 받은 `caseNN_clova_raw.json`을 복사합니다.
 테스트 처방 이미지는 모두 가상 데이터라 응답을 그대로 저장해도 됩니다. **실제 처방전 응답은 절대 저장하지 않습니다.**
-
-```python
-import asyncio, json
-from pathlib import Path
-from app.services.clova_ocr import ClovaOcrClient
-
-async def dump(image_path: str, out_name: str):
-    client = ClovaOcrClient.from_env()
-    body = client.build_request_body(Path(image_path).read_bytes())
-    resp = await client._http.post(client._url, json=body, headers={"X-OCR-SECRET": client._secret})
-    Path(f"app/tests/fixtures/clova/{out_name}").write_text(
-        json.dumps(resp.json(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    await client.aclose()
-
-asyncio.run(dump("docs/test-prescriptions/case04.png", "case04_table.json"))
-```

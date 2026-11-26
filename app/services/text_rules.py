@@ -110,6 +110,27 @@ def parse_dose_text(text: str) -> DosePerTime:
     }
 
 
+# 정·캡슐·포를 이보다 적게 먹는 처방은 드물어서, 이 아래면 OCR이 숫자를 잘못 읽었을 수 있다고 봄
+SUSPICIOUS_DOSE_UNITS = {"정", "캡슐", "포"}
+SUSPICIOUS_DOSE_BELOW = 0.25
+
+
+def is_suspicious_dose(dose: DosePerTime) -> bool:
+    """정·캡슐·포인데 1회 용량이 0.25 미만이면 True (needs_check를 켜서 확인을 요청).
+
+    >>> is_suspicious_dose(parse_dose_text("0.1정"))
+    True
+    >>> is_suspicious_dose(parse_dose_text("1/4정"))
+    False
+    """
+    return bool(
+        dose["parsed"]
+        and dose["unit"] in SUSPICIOUS_DOSE_UNITS
+        and dose["min"] is not None
+        and dose["min"] < SUSPICIOUS_DOSE_BELOW
+    )
+
+
 # ---------------------------------------------------------------------------
 # mask_text
 # ---------------------------------------------------------------------------

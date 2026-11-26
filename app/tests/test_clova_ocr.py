@@ -1,7 +1,7 @@
 """clova_ocr.py 테스트. 실제 CLOVA는 부르지 않고 fixture와 httpx.MockTransport로 확인합니다.
 
 fixture(app/tests/fixtures/clova/)는 공식 문서의 V2 응답 형식에 맞춰 PR #24 테스트 처방 이미지를 본떠 만든 것입니다.
-실제 응답을 받으면 같은 이름으로 바꿔 넣고 기대값을 맞춰 주세요(README.md 참고).
+실제 CLOVA 응답으로 확인하는 테스트는 test_clova_real.py에 있습니다(README.md 참고).
 """
 
 import asyncio
@@ -14,6 +14,7 @@ import httpx
 import pytest
 
 import app.services.scan_service as sp
+from app.core.config import Config
 from app.dtos.scan import DocumentStatus, FailReason
 from app.services.clova_ocr import ClovaOcrClient, ClovaOcrError, parse_clova_response
 from app.tests.test_scan_service import make_deps
@@ -202,14 +203,10 @@ def test_error_message_has_no_ocr_text():
     assert "053" not in str(e.value) and "김" not in str(e.value)
 
 
-def test_requires_url_and_secret(monkeypatch):
-    monkeypatch.delenv("CLOVA_OCR_URL", raising=False)
-    monkeypatch.delenv("CLOVA_OCR_SECRET", raising=False)
+def test_requires_url_and_secret():
     with pytest.raises(ValueError):
-        ClovaOcrClient.from_env()
-    monkeypatch.setenv("CLOVA_OCR_URL", URL)
-    monkeypatch.setenv("CLOVA_OCR_SECRET", SECRET)
-    run(ClovaOcrClient.from_env().aclose())
+        ClovaOcrClient.from_config(Config(CLOVA_OCR_URL="", CLOVA_OCR_SECRET=""))
+    run(ClovaOcrClient.from_config(Config(CLOVA_OCR_URL=URL, CLOVA_OCR_SECRET=SECRET)).aclose())
 
 
 # ---------------------------------------------------------------------------
