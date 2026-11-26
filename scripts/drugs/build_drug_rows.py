@@ -77,12 +77,19 @@ def clean_ingredients(raw: str | None) -> str | None:
 
 
 def guess_is_oral(name: str | None, chart: str | None) -> bool | None:
-    """먹는 약이면 True, 아니면 False, 모르면 None(회원 확인)."""
+    """먹는 약이면 True, 아니면 False, 모르면 None(회원 확인).
+
+    False면 확인 화면에서 등록이 거절되므로(6-2), 헷갈리면 False 대신 None으로 둡니다.
+    """
     name = (name or "").strip()
     chart = chart or ""
-    if NOT_ORAL_FORM.search(chart):
-        return False
-    if ORAL_FORM.search(chart):
+    not_oral_form = NOT_ORAL_FORM.search(chart)
+    oral_form = ORAL_FORM.search(chart)
+    if not_oral_form and oral_form:  # 성상에 두 쪽 표현 다 있음 (예: '시럽이 든 앰플제')
+        return None
+    if not_oral_form:  # 안 먹는 표현만 있어도 이름이 먹는 약 같으면 회원 확인
+        return None if ORAL_NAME.search(name) else False
+    if oral_form:
         return True
     if NOT_ORAL_NAME.search(name):
         return False
