@@ -7,6 +7,7 @@ AI A 공용 함수 (API 명세서 6-4)
 
 두 함수 모두 DB·외부 호출이 없는 순수 함수입니다. 같은 입력이면 항상 같은 결과입니다.
 """
+
 from __future__ import annotations
 
 import re
@@ -30,12 +31,22 @@ class DosePerTime(TypedDict):
 
 # 표현 사전 v1: 적힌 단위 → 저장·표시할 단위. 테스트하면서 늘립니다.
 UNIT_ALIASES: dict[str, str] = {
-    "정": "정", "알": "정", "t": "정", "tab": "정", "tablet": "정",
-    "캡슐": "캡슐", "c": "캡슐", "cap": "캡슐", "capsule": "캡슐",
-    "포": "포", "pk": "포",
-    "ml": "mL", "cc": "mL",
+    "정": "정",
+    "알": "정",
+    "t": "정",
+    "tab": "정",
+    "tablet": "정",
+    "캡슐": "캡슐",
+    "c": "캡슐",
+    "cap": "캡슐",
+    "capsule": "캡슐",
+    "포": "포",
+    "pk": "포",
+    "ml": "mL",
+    "cc": "mL",
     "g": "g",
-    "방울": "방울", "gtt": "방울",
+    "방울": "방울",
+    "gtt": "방울",
 }
 
 # 숫자 대신 쓰는 한글 표현
@@ -109,6 +120,12 @@ _LABELED_RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(면허\s*번호)(\s*[:：]?\s*)([A-Za-z0-9\-]+)"), "[면허번호]"),
 ]
 
+# 1-2) 뒤에 붙는 호칭으로 알 수 있는 이름: 약봉투의 '김다올 님 귀하', '김다올님귀하'
+#      이름은 가장 짧게 잡아야 '김다올님'처럼 호칭까지 먹지 않습니다.
+_SUFFIX_NAME_RULES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"([가-힣]{2,4}?)(?=\s*님?\s*귀하)"), "[이름]"),
+]
+
 # 2) 모양만으로 알 수 있는 값
 _SHAPE_RULES: list[tuple[re.Pattern[str], str]] = [
     # 주민등록번호: 하이픈 또는 띄어쓰기로 나눈 경우(900101-1234567, 900101 1234567).
@@ -123,7 +140,7 @@ _SHAPE_RULES: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
-MaskSpan = tuple[int, int, str]   # (시작, 끝, 토큰)
+MaskSpan = tuple[int, int, str]  # (시작, 끝, 토큰)
 
 
 def find_mask_spans(text: str) -> list[MaskSpan]:
@@ -134,16 +151,13 @@ def find_mask_spans(text: str) -> list[MaskSpan]:
     def is_free(start: int, end: int) -> bool:
         return all(end <= a or start >= b for a, b, _ in spans)
 
-    for pattern, token in _LABELED_RULES:
-        for m in pattern.finditer(text):
-            start, end = m.span(3)
-            if is_free(start, end):
-                spans.append((start, end, token))
-    for pattern, token in _SHAPE_RULES:
-        for m in pattern.finditer(text):
-            start, end = m.span()
-            if is_free(start, end):
-                spans.append((start, end, token))
+    # (규칙 목록, 가릴 그룹 번호): 이름표 값은 3번 그룹, 호칭 앞 이름은 1번 그룹, 모양 규칙은 전체
+    for rules, group in ((_LABELED_RULES, 3), (_SUFFIX_NAME_RULES, 1), (_SHAPE_RULES, 0)):
+        for pattern, token in rules:
+            for m in pattern.finditer(text):
+                start, end = m.span(group)
+                if is_free(start, end):
+                    spans.append((start, end, token))
     return sorted(spans)
 
 
@@ -202,7 +216,7 @@ def normalize_drug_name(name: str) -> str:
     """
     if not name:
         return ""
-    s = unicodedata.normalize("NFKC", name).lower()   # ㎎→mg, ㎖→ml, 전각 문자 정리
+    s = unicodedata.normalize("NFKC", name).lower()  # ㎎→mg, ㎖→ml, 전각 문자 정리
     for pattern, repl in _DRUG_UNIT_RULES:
         s = pattern.sub(repl, s)
     # 괄호는 안의 내용까지 지웁니다. 허가정보 이름 뒤에 붙은 성분명('가스모틴정5밀리그램(모사프리드…)')이

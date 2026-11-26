@@ -7,11 +7,12 @@ API 명세서 6장(처방 등록·검증)에 맞춘 Pydantic 모델입니다. �
 - 1~4회, 1~365일, 1차 허용 timing, daily만 같은 업무 규칙은 명세서 4장대로
   validate_drug_input()(민정)이 검사해 VALIDATION_ERROR의 fields 형식으로 돌려줍니다.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Annotated, Generic, Literal, TypeVar, Union
+from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -22,11 +23,11 @@ T = TypeVar("T")
 # Enum
 # ===========================================================================
 class DocType(str, Enum):
-    PRESCRIPTION = "prescription"      # 처방전
-    PILL_ENVELOPE = "pill_envelope"    # 약봉투
+    PRESCRIPTION = "prescription"  # 처방전
+    PILL_ENVELOPE = "pill_envelope"  # 약봉투
 
 
-class DocumentStatus(str, Enum):       # ERD document_status 그대로 (6-1)
+class DocumentStatus(str, Enum):  # ERD document_status 그대로 (6-1)
     UPLOADED = "uploaded"
     OCR_DONE = "ocr_done"
     OCR_FAILED = "ocr_failed"
@@ -34,7 +35,7 @@ class DocumentStatus(str, Enum):       # ERD document_status 그대로 (6-1)
     EXPIRED = "expired"
 
 
-class ScanStep(str, Enum):             # 로딩 문구용 (uploaded일 때만)
+class ScanStep(str, Enum):  # 로딩 문구용 (uploaded일 때만)
     READING = "reading"
     STRUCTURING = "structuring"
 
@@ -87,14 +88,14 @@ CONFIRM_ALLOWED_TIMINGS = {Timing.AFTER_MEAL, Timing.BEFORE_MEAL, Timing.BEDTIME
 
 
 class ParsedBy(str, Enum):
-    RULE = "rule"    # 표현 사전
-    USER = "user"    # 회원이 고름 (llm은 2차)
+    RULE = "rule"  # 표현 사전
+    USER = "user"  # 회원이 고름 (llm은 2차)
 
 
 class CycleType(str, Enum):
-    DAILY = "daily"                       # 1차는 daily만 시간표 계산
-    EVERY_OTHER_DAY = "every_other_day"   # 인식되면 needs_confirm: true
-    WEEKLY = "weekly"                     # 〃
+    DAILY = "daily"  # 1차는 daily만 시간표 계산
+    EVERY_OTHER_DAY = "every_other_day"  # 인식되면 needs_confirm: true
+    WEEKLY = "weekly"  # 〃
 
 
 class ConditionReason(str, Enum):
@@ -102,7 +103,7 @@ class ConditionReason(str, Enum):
     MEAL_UNKNOWN = "meal_unknown"
 
 
-class ScanErrorCode(str, Enum):           # 6-3 + 이 영역에서 쓰는 1-1 공통 코드
+class ScanErrorCode(str, Enum):  # 6-3 + 이 영역에서 쓰는 1-1 공통 코드
     VALIDATION_ERROR = "VALIDATION_ERROR"
     NOT_FOUND = "NOT_FOUND"
     RATE_LIMITED = "RATE_LIMITED"
@@ -121,13 +122,15 @@ class ScanErrorCode(str, Enum):           # 6-3 + 이 영역에서 쓰는 1-1 �
 # ===========================================================================
 class FieldValue(BaseModel, Generic[T]):
     """OCR에서 읽은 칸. needs_check가 true인 칸만 노란색으로 표시합니다."""
+
     value: T
-    confidence: float | None = Field(..., ge=0, le=1)   # 원문과 달라졌거나 회원이 고친 칸은 null
+    confidence: float | None = Field(..., ge=0, le=1)  # 원문과 달라졌거나 회원이 고친 칸은 null
     needs_check: bool
 
 
 class DosePerTime(BaseModel):
     """parse_dose_text()(6-4) 출력과 같은 모양."""
+
     text: str
     min: float | None
     max: float | None
@@ -138,9 +141,10 @@ class DosePerTime(BaseModel):
 class DosePerTimeField(DosePerTime):
     """인식 결과의 1회 용량. parsed: false면 needs_check: true.
     회원이 PATCH로 고친 용량이면 edited: true(고친 용량을 읽을 수 없으면 needs_check도 true, 6-2 예외)."""
+
     confidence: float | None = Field(..., ge=0, le=1)
     needs_check: bool
-    edited: bool = False   # 프론트가 고친 용량과 OCR 용량의 안내 문구를 나누는 데 씀(11/25 설아)
+    edited: bool = False  # 프론트가 고친 용량과 OCR 용량의 안내 문구를 나누는 데 씀(11/25 설아)
 
 
 class DrugCandidate(BaseModel):
@@ -152,7 +156,7 @@ class DrugCandidate(BaseModel):
 
 class DrugMatch(BaseModel):
     status: MatchStatus
-    drug_id: int | None                                   # exact일 때만 채워짐
+    drug_id: int | None  # exact일 때만 채워짐
     candidates: list[DrugCandidate] = Field(default_factory=list, max_length=3)
 
 
@@ -160,12 +164,12 @@ class Dose(BaseModel):
     dose_no: int = Field(..., ge=1)
     meal: Meal | None
     timing: Timing | None
-    offset_min: int | None                                # 원문에 없으면 null
+    offset_min: int | None  # 원문에 없으면 null
 
 
 class Cycle(BaseModel):
     type: CycleType
-    start_date: date                                      # 처방일을 읽었으면 처방일, 아니면 오늘
+    start_date: date  # 처방일을 읽었으면 처방일, 아니면 오늘
 
 
 class Dosage(BaseModel):
@@ -178,14 +182,15 @@ class Dosage(BaseModel):
 
 class ScanDrug(BaseModel):
     """인식 결과의 약 한 줄. 원문 줄 순서(line_no)대로, 같은 약이어도 합치지 않습니다."""
+
     line_no: int
-    page_no: int | None                                   # 회원이 새로 추가한 줄은 null
-    raw_text: str | None                                  # 가린 원문 줄. 새로 추가한 줄은 null
+    page_no: int | None  # 회원이 새로 추가한 줄은 null
+    raw_text: str | None  # 가린 원문 줄. 새로 추가한 줄은 null
     drug_name: FieldValue[str]
     match: DrugMatch
     is_oral: bool | None
     dose_per_time: DosePerTimeField
-    times_per_day: FieldValue[int | None]                 # 필요시 약만 null 가능
+    times_per_day: FieldValue[int | None]  # 필요시 약만 null 가능
     total_days: FieldValue[int | None]
     instruction_text: str | None
     dosage: Dosage
@@ -204,7 +209,7 @@ class ScanCreatedResponse(BaseModel):
     step: Literal[ScanStep.READING]
     doc_type: DocType
     page_count: int
-    image_delete_due_at: datetime                         # 업로드 + 3시간, 연장 없음
+    image_delete_due_at: datetime  # 업로드 + 3시간, 연장 없음
 
 
 # ===========================================================================
@@ -226,7 +231,7 @@ class ScanOcrDoneResponse(BaseModel):
     image_delete_due_at: datetime
     pages: list[ScanPage]
     masked: bool
-    prompt_version: str                                   # "parse_document_v1"
+    prompt_version: str  # "parse_document_v1"
     edited: bool
     hospital_name: FieldValue[str | None]
     prescribed_date: FieldValue[date | None]
@@ -246,7 +251,7 @@ class ScanConfirmedResponse(BaseModel):
     scan_id: int
     status: Literal[DocumentStatus.CONFIRMED]
     step: None = None
-    prescription_id: int                                  # prescriptions.document_id로 찾음
+    prescription_id: int  # prescriptions.document_id로 찾음
 
 
 class ScanExpiredResponse(BaseModel):
@@ -256,8 +261,7 @@ class ScanExpiredResponse(BaseModel):
 
 
 ScanStatusResponse = Annotated[
-    Union[ScanUploadedResponse, ScanOcrDoneResponse, ScanOcrFailedResponse,
-          ScanConfirmedResponse, ScanExpiredResponse],
+    ScanUploadedResponse | ScanOcrDoneResponse | ScanOcrFailedResponse | ScanConfirmedResponse | ScanExpiredResponse,
     Field(discriminator="status"),
 ]
 
@@ -266,17 +270,19 @@ ScanStatusResponse = Annotated[
 # PATCH /scans/{scan_id} — 둘 중 하나만 (둘 다 보내면 VALIDATION_ERROR)
 # ===========================================================================
 class DosePerTimeInput(BaseModel):
-    text: str                                             # 서버가 parse_dose_text()로 나머지를 채움
+    text: str  # 서버가 parse_dose_text()로 나머지를 채움
 
 
 class DosageEdit(BaseModel):
     """회원이 고른 복용 조건. 저장하면 parsed_by: user, needs_confirm: false."""
+
     as_needed: bool | None = None
     doses: list[Dose] | None = None
 
 
 class ScanDrugEdit(BaseModel):
     """바꾼 칸만 보냅니다. 기존 줄은 line_no, 새 줄은 line_no 없이, 지울 줄은 deleted: true."""
+
     line_no: int | None = None
     deleted: bool | None = None
     drug_id: int | None = None
@@ -287,13 +293,13 @@ class ScanDrugEdit(BaseModel):
     dosage: DosageEdit | None = None
 
 
-class ScanEditRequest(BaseModel):                         # ① 고친 값 저장 → 200 (ocr_done 모양, edited: true)
+class ScanEditRequest(BaseModel):  # ① 고친 값 저장 → 200 (ocr_done 모양, edited: true)
     hospital_name: str | None = None
     prescribed_date: date | None = None
     drugs: list[ScanDrugEdit] | None = None
 
 
-class ScanDocTypeRequest(BaseModel):                      # ② 문서 종류 다시 고르기 → 202
+class ScanDocTypeRequest(BaseModel):  # ② 문서 종류 다시 고르기 → 202
     doc_type: DocType
 
 
@@ -315,12 +321,12 @@ class ConfirmDosage(BaseModel):
 
 
 class ConfirmDrug(BaseModel):
-    line_no: int | None = None                            # OCR만. 저장하지 않음
-    drug_id: int | None                                   # 공공데이터에 없는 약은 null
-    drug_name: str                                        # → prescription_items.drug_name_raw
-    raw_text: str | None = None                           # 가린 원문 줄 → source_text. 새 줄은 null
-    dose_per_time: DosePerTime                            # ERD에는 text만 저장
-    times_per_day: int | None                             # as_needed면 null 가능
+    line_no: int | None = None  # OCR만. 저장하지 않음
+    drug_id: int | None  # 공공데이터에 없는 약은 null
+    drug_name: str  # → prescription_items.drug_name_raw
+    raw_text: str | None = None  # 가린 원문 줄 → source_text. 새 줄은 null
+    dose_per_time: DosePerTime  # ERD에는 text만 저장
+    times_per_day: int | None  # as_needed면 null 가능
     total_days: int
     instruction_text: str | None = None
     dosage: ConfirmDosage
@@ -353,4 +359,4 @@ class ConfirmResponse(BaseModel):
 class ErrorResponse(BaseModel):
     code: ScanErrorCode
     message: str
-    fields: dict[str, str] | None = None                  # {"drugs[1].total_days": "사유 문장"}
+    fields: dict[str, str] | None = None  # {"drugs[1].total_days": "사유 문장"}
