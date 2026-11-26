@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
@@ -57,7 +58,7 @@ from app.dtos.scan import (
     ScanStep,
     ScanUploadedResponse,
 )
-from app.services.text_rules import MaskSpan, apply_mask_spans, find_mask_spans, parse_dose_text
+from app.services.text_rules import MaskSpan, apply_mask_spans, find_mask_spans, is_suspicious_dose, parse_dose_text
 
 # ---------------------------------------------------------------------------
 # 명세서 수치 (테스트 후 조정)
@@ -73,6 +74,8 @@ MAX_TOTAL_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 10
 DAILY_SCAN_LIMIT = 20  # expired 문서도 셈
 PROMPT_VERSION = "parse_document_v1"
+
+logger = logging.getLogger(__name__)
 
 
 class ScanFailed(Exception):  # noqa: N818 (명세서 용어 그대로 유지)
@@ -349,13 +352,18 @@ def build_scan_drug(
     dose = parse_dose_text(llm.dose_text or "")
     dose_src = build_field(llm.dose_text, line)
     dose_field = DosePerTimeField(
-        **dose, confidence=dose_src.confidence, needs_check=dose_src.needs_check or not dose["parsed"]
+        **dose,
+        confidence=dose_src.confidence,
+        needs_check=dose_src.needs_check or not dose["parsed"] or is_suspicious_dose(dose),
     )
 
     try:
         dosage = instructions.parse(llm.instruction_text, llm.times_per_day, start_date)
     except Exception:
         dosage = fallback_dosage(llm.times_per_day, start_date)
+    if is_oral is False:
+        # 먹는 약이 아니면 확정 때 빠지므로(6-2 is_oral 표) 복용 조건 확인을 요구하지 않음
+        dosage = dosage.model_copy(update={"needs_confirm": False})
 
     times_field = build_field(llm.times_per_day, line, kind="int", exclude=name_span)
     if dosage.as_needed and llm.times_per_day is None:
@@ -435,10 +443,11 @@ async def _retry(make_call: Callable[[], Awaitable], *, retries: int, fail: Fail
     for attempt in range(retries + 1):
         try:
             return await asyncio.wait_for(make_call(), timeout)
-        except Exception:
+        except Exception as e:
             if attempt == retries:
                 # from e 금지: LLM 검증 에러 메시지에 처방 내용(약 이름·복용법)이 들어 있어
-                # 예외를 연결하면 로그·스택에 남을 수 있음. 원인은 사유 코드(fail)로만 남김
+                # 예외를 연결하면 로그·스택에 남을 수 있음. 원인을 남길 땐 에러 종류 이름만 기록
+                logger.warning("scan retry failed: reason=%s error=%s", fail.value, type(e).__name__)
                 raise ScanFailed(fail) from None
 
 
@@ -650,7 +659,12 @@ def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 
         if "dose_per_time" in e:
             dose = parse_dose_text(edit.dose_per_time.text)
             # 명세서 6-2 예외: 고친 칸은 needs_check=False가 원칙이지만, 읽을 수 없는 용량은 계속 표시
-            drug["dose_per_time"] = {**dose, "confidence": None, "needs_check": not dose["parsed"], "edited": True}
+            drug["dose_per_time"] = {
+                **dose,
+                "confidence": None,
+                "needs_check": not dose["parsed"] or is_suspicious_dose(dose),
+                "edited": True,
+            }
         if "total_days" in e:
             drug["total_days"] = user(edit.total_days)
         if "times_per_day" in e:
@@ -669,6 +683,11 @@ def apply_edits(  # noqa: C901 (수정 항목별 분기. 리팩터링은 별도 
                 new["doses"] = [d.model_dump(mode="json") for d in edit.dosage.doses]
             new.update(parsed_by=ParsedBy.USER.value, needs_confirm=False)
             drug["dosage"] = new
+        if "drug_id" in e and "dosage" not in e and drug["dosage"]["parsed_by"] == ParsedBy.RULE.value:
+            # 약이 바뀌면 먹는 약 여부가 달라질 수 있으니 사전 결과를 다시 만듦(needs_confirm 되돌리기)
+            drug["dosage"] = _rebuild_dosage(drug, drug["times_per_day"]["value"], start_date, instructions)
+        if drug["is_oral"] is False:
+            drug["dosage"] = {**drug["dosage"], "needs_confirm": False}
 
     if errors:
         raise ScanValidationError(errors)

@@ -1,0 +1,2916 @@
+{
+  "version": "V2",
+  "requestId": "ce287cef-b4cc-4b53-8b84-b9e6b2ab88fb",
+  "timestamp": 1795660259186,
+  "images": [
+    {
+      "uid": "703ba071826d41788cb6cf6239177b52",
+      "name": "page",
+      "inferResult": "SUCCESS",
+      "message": "SUCCESS",
+      "validationResult": {
+        "result": "NO_REQUESTED"
+      },
+      "convertedImageInfo": {
+        "width": 450,
+        "height": 314,
+        "pageIndex": 0,
+        "longImage": false
+      },
+      "tables": [
+        {
+          "cells": [
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 61.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 114.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 114.0,
+                        "y": 152.0
+                      },
+                      {
+                        "x": 61.0,
+                        "y": 152.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9992342,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 61.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 114.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 114.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 61.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "의약품명",
+                      "inferConfidence": 0.9992342
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 27.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 27.0,
+                    "y": 159.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9992342,
+              "rowSpan": 1,
+              "rowIndex": 0,
+              "columnSpan": 1,
+              "columnIndex": 0
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 35.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 139.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 139.0,
+                        "y": 182.0
+                      },
+                      {
+                        "x": 35.0,
+                        "y": 182.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9944206,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 35.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 139.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 139.0,
+                            "y": 182.0
+                          },
+                          {
+                            "x": 35.0,
+                            "y": 182.0
+                          }
+                        ]
+                      },
+                      "inferText": "코대원포르테시럽",
+                      "inferConfidence": 0.9944206
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 27.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 27.0,
+                    "y": 189.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9944206,
+              "rowSpan": 1,
+              "rowIndex": 1,
+              "columnSpan": 1,
+              "columnIndex": 0
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 62.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 113.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 113.0,
+                        "y": 212.0
+                      },
+                      {
+                        "x": 62.0,
+                        "y": 212.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99287474,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 62.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 113.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 113.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 62.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "펠루비정",
+                      "inferConfidence": 0.99287474
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 27.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 27.0,
+                    "y": 219.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99287474,
+              "rowSpan": 1,
+              "rowIndex": 2,
+              "columnSpan": 1,
+              "columnIndex": 0
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 55.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 120.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 120.0,
+                        "y": 242.0
+                      },
+                      {
+                        "x": 55.0,
+                        "y": 242.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9991603,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 55.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 120.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 120.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 55.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "무코스타정",
+                      "inferConfidence": 0.9991603
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 27.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 249.0
+                  },
+                  {
+                    "x": 27.0,
+                    "y": 249.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9991603,
+              "rowSpan": 1,
+              "rowIndex": 3,
+              "columnSpan": 1,
+              "columnIndex": 0
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 154.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 220.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 220.0,
+                        "y": 152.0
+                      },
+                      {
+                        "x": 154.0,
+                        "y": 152.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99579924,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 154.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 175.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 175.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 154.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "1회",
+                      "inferConfidence": 0.99579924
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 179.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 220.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 220.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 179.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "투약량",
+                      "inferConfidence": 0.99579924
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 148.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 159.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99579924,
+              "rowSpan": 1,
+              "rowIndex": 0,
+              "columnSpan": 1,
+              "columnIndex": 1
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 170.0,
+                        "y": 170.0
+                      },
+                      {
+                        "x": 204.0,
+                        "y": 170.0
+                      },
+                      {
+                        "x": 204.0,
+                        "y": 181.0
+                      },
+                      {
+                        "x": 170.0,
+                        "y": 181.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9976478,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 170.0,
+                            "y": 170.0
+                          },
+                          {
+                            "x": 204.0,
+                            "y": 170.0
+                          },
+                          {
+                            "x": 204.0,
+                            "y": 181.0
+                          },
+                          {
+                            "x": 170.0,
+                            "y": 181.0
+                          }
+                        ]
+                      },
+                      "inferText": "20mL",
+                      "inferConfidence": 0.9976478
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 148.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 189.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9976478,
+              "rowSpan": 1,
+              "rowIndex": 1,
+              "columnSpan": 1,
+              "columnIndex": 1
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 176.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 196.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 196.0,
+                        "y": 212.0
+                      },
+                      {
+                        "x": 176.0,
+                        "y": 212.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9245139,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 176.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 196.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 196.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 176.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "1정",
+                      "inferConfidence": 0.9245139
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 148.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 219.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9245139,
+              "rowSpan": 1,
+              "rowIndex": 2,
+              "columnSpan": 1,
+              "columnIndex": 1
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 176.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 196.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 196.0,
+                        "y": 242.0
+                      },
+                      {
+                        "x": 176.0,
+                        "y": 242.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.91053265,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 176.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 196.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 196.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 176.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "1정",
+                      "inferConfidence": 0.91053265
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 148.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 249.0
+                  },
+                  {
+                    "x": 148.0,
+                    "y": 249.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.91053265,
+              "rowSpan": 1,
+              "rowIndex": 3,
+              "columnSpan": 1,
+              "columnIndex": 1
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 233.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 285.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 285.0,
+                        "y": 152.0
+                      },
+                      {
+                        "x": 233.0,
+                        "y": 152.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99581474,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 233.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 254.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 254.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 233.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "1일",
+                      "inferConfidence": 0.99581474
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 258.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 285.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 285.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 258.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "횟수",
+                      "inferConfidence": 0.99581474
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 226.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 159.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99581474,
+              "rowSpan": 1,
+              "rowIndex": 0,
+              "columnSpan": 1,
+              "columnIndex": 2
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 248.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 182.0
+                      },
+                      {
+                        "x": 248.0,
+                        "y": 182.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99883145,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 248.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 182.0
+                          },
+                          {
+                            "x": 248.0,
+                            "y": 182.0
+                          }
+                        ]
+                      },
+                      "inferText": "3회",
+                      "inferConfidence": 0.99883145
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 226.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 189.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99883145,
+              "rowSpan": 1,
+              "rowIndex": 1,
+              "columnSpan": 1,
+              "columnIndex": 2
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 248.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 212.0
+                      },
+                      {
+                        "x": 248.0,
+                        "y": 212.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99886215,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 248.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 248.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "3회",
+                      "inferConfidence": 0.99886215
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 226.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 219.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99886215,
+              "rowSpan": 1,
+              "rowIndex": 2,
+              "columnSpan": 1,
+              "columnIndex": 2
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 248.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 269.0,
+                        "y": 242.0
+                      },
+                      {
+                        "x": 248.0,
+                        "y": 242.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9986247,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 248.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 269.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 248.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "3회",
+                      "inferConfidence": 0.9986247
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 226.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 249.0
+                  },
+                  {
+                    "x": 226.0,
+                    "y": 249.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9986247,
+              "rowSpan": 1,
+              "rowIndex": 3,
+              "columnSpan": 1,
+              "columnIndex": 2
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 299.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 343.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 343.0,
+                        "y": 152.0
+                      },
+                      {
+                        "x": 299.0,
+                        "y": 152.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.86412925,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 299.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 312.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 312.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 299.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "총",
+                      "inferConfidence": 0.86412925
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 317.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 343.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 343.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 317.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "일수",
+                      "inferConfidence": 0.86412925
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 292.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 159.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.86412925,
+              "rowSpan": 1,
+              "rowIndex": 0,
+              "columnSpan": 1,
+              "columnIndex": 3
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 309.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 182.0
+                      },
+                      {
+                        "x": 309.0,
+                        "y": 182.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9985964,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 309.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 182.0
+                          },
+                          {
+                            "x": 309.0,
+                            "y": 182.0
+                          }
+                        ]
+                      },
+                      "inferText": "3일",
+                      "inferConfidence": 0.9985964
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 292.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 189.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9985964,
+              "rowSpan": 1,
+              "rowIndex": 1,
+              "columnSpan": 1,
+              "columnIndex": 3
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 309.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 212.0
+                      },
+                      {
+                        "x": 309.0,
+                        "y": 212.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99848384,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 309.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 309.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "3일",
+                      "inferConfidence": 0.99848384
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 292.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 219.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99848384,
+              "rowSpan": 1,
+              "rowIndex": 2,
+              "columnSpan": 1,
+              "columnIndex": 3
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 310.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 331.0,
+                        "y": 242.0
+                      },
+                      {
+                        "x": 310.0,
+                        "y": 242.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9987821,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 310.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 331.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 310.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "3일",
+                      "inferConfidence": 0.9987821
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 292.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 249.0
+                  },
+                  {
+                    "x": 292.0,
+                    "y": 249.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9987821,
+              "rowSpan": 1,
+              "rowIndex": 3,
+              "columnSpan": 1,
+              "columnIndex": 3
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 373.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 399.0,
+                        "y": 138.0
+                      },
+                      {
+                        "x": 399.0,
+                        "y": 152.0
+                      },
+                      {
+                        "x": 373.0,
+                        "y": 152.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9991272,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 373.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 399.0,
+                            "y": 138.0
+                          },
+                          {
+                            "x": 399.0,
+                            "y": 152.0
+                          },
+                          {
+                            "x": 373.0,
+                            "y": 152.0
+                          }
+                        ]
+                      },
+                      "inferText": "용법",
+                      "inferConfidence": 0.9991272
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 349.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 129.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 159.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9991272,
+              "rowSpan": 1,
+              "rowIndex": 0,
+              "columnSpan": 1,
+              "columnIndex": 4
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 358.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 168.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 182.0
+                      },
+                      {
+                        "x": 358.0,
+                        "y": 182.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9953981,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 358.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 182.0
+                          },
+                          {
+                            "x": 358.0,
+                            "y": 182.0
+                          }
+                        ]
+                      },
+                      "inferText": "식후",
+                      "inferConfidence": 0.9953981
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 387.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 168.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 182.0
+                          },
+                          {
+                            "x": 387.0,
+                            "y": 182.0
+                          }
+                        ]
+                      },
+                      "inferText": "30분",
+                      "inferConfidence": 0.9953981
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 349.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 159.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 189.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9953981,
+              "rowSpan": 1,
+              "rowIndex": 1,
+              "columnSpan": 1,
+              "columnIndex": 4
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 358.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 198.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 212.0
+                      },
+                      {
+                        "x": 358.0,
+                        "y": 212.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.9952188,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 358.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 358.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "식후",
+                      "inferConfidence": 0.9952188
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 387.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 198.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 212.0
+                          },
+                          {
+                            "x": 387.0,
+                            "y": 212.0
+                          }
+                        ]
+                      },
+                      "inferText": "30분",
+                      "inferConfidence": 0.9952188
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 349.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 189.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 219.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.9952188,
+              "rowSpan": 1,
+              "rowIndex": 2,
+              "columnSpan": 1,
+              "columnIndex": 4
+            },
+            {
+              "cellTextLines": [
+                {
+                  "boundingPoly": {
+                    "vertices": [
+                      {
+                        "x": 358.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 228.0
+                      },
+                      {
+                        "x": 416.0,
+                        "y": 242.0
+                      },
+                      {
+                        "x": 358.0,
+                        "y": 242.0
+                      }
+                    ]
+                  },
+                  "inferConfidence": 0.99201643,
+                  "cellWords": [
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 358.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 384.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 358.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "식후",
+                      "inferConfidence": 0.99201643
+                    },
+                    {
+                      "boundingPoly": {
+                        "vertices": [
+                          {
+                            "x": 387.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 228.0
+                          },
+                          {
+                            "x": 416.0,
+                            "y": 242.0
+                          },
+                          {
+                            "x": 387.0,
+                            "y": 242.0
+                          }
+                        ]
+                      },
+                      "inferText": "30분",
+                      "inferConfidence": 0.99201643
+                    }
+                  ]
+                }
+              ],
+              "boundingPoly": {
+                "vertices": [
+                  {
+                    "x": 349.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 219.0
+                  },
+                  {
+                    "x": 422.0,
+                    "y": 249.0
+                  },
+                  {
+                    "x": 349.0,
+                    "y": 249.0
+                  }
+                ]
+              },
+              "inferConfidence": 0.99201643,
+              "rowSpan": 1,
+              "rowIndex": 3,
+              "columnSpan": 1,
+              "columnIndex": 4
+            }
+          ],
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 27.0,
+                "y": 129.0
+              },
+              {
+                "x": 422.0,
+                "y": 129.0
+              },
+              {
+                "x": 422.0,
+                "y": 249.0
+              },
+              {
+                "x": 27.0,
+                "y": 249.0
+              }
+            ]
+          },
+          "inferConfidence": 0.9824034
+        }
+      ],
+      "fields": [
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 121.0,
+                "y": 32.0
+              },
+              {
+                "x": 140.0,
+                "y": 32.0
+              },
+              {
+                "x": 140.0,
+                "y": 50.0
+              },
+              {
+                "x": 121.0,
+                "y": 50.0
+              }
+            ]
+          },
+          "inferText": "처",
+          "inferConfidence": 0.6964347,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 143.0,
+                "y": 32.0
+              },
+              {
+                "x": 163.0,
+                "y": 32.0
+              },
+              {
+                "x": 163.0,
+                "y": 50.0
+              },
+              {
+                "x": 143.0,
+                "y": 50.0
+              }
+            ]
+          },
+          "inferText": "방",
+          "inferConfidence": 0.6964347,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 169.0,
+                "y": 32.0
+              },
+              {
+                "x": 186.0,
+                "y": 32.0
+              },
+              {
+                "x": 186.0,
+                "y": 50.0
+              },
+              {
+                "x": 169.0,
+                "y": 50.0
+              }
+            ]
+          },
+          "inferText": "전",
+          "inferConfidence": 0.9986511,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 192.0,
+                "y": 35.0
+              },
+              {
+                "x": 241.0,
+                "y": 35.0
+              },
+              {
+                "x": 241.0,
+                "y": 52.0
+              },
+              {
+                "x": 192.0,
+                "y": 52.0
+              }
+            ]
+          },
+          "inferText": "(Case",
+          "inferConfidence": 0.9986511,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 246.0,
+                "y": 35.0
+              },
+              {
+                "x": 268.0,
+                "y": 35.0
+              },
+              {
+                "x": 268.0,
+                "y": 50.0
+              },
+              {
+                "x": 246.0,
+                "y": 50.0
+              }
+            ]
+          },
+          "inferText": "04",
+          "inferConfidence": 0.9999517,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 273.0,
+                "y": 41.0
+              },
+              {
+                "x": 280.0,
+                "y": 41.0
+              },
+              {
+                "x": 280.0,
+                "y": 46.0
+              },
+              {
+                "x": 273.0,
+                "y": 46.0
+              }
+            ]
+          },
+          "inferText": "-",
+          "inferConfidence": 0.99727947,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 287.0,
+                "y": 32.0
+              },
+              {
+                "x": 330.0,
+                "y": 32.0
+              },
+              {
+                "x": 330.0,
+                "y": 52.0
+              },
+              {
+                "x": 287.0,
+                "y": 52.0
+              }
+            ]
+          },
+          "inferText": "정상)",
+          "inferConfidence": 0.9960996,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 27.0,
+                "y": 78.0
+              },
+              {
+                "x": 84.0,
+                "y": 78.0
+              },
+              {
+                "x": 84.0,
+                "y": 92.0
+              },
+              {
+                "x": 27.0,
+                "y": 92.0
+              }
+            ]
+          },
+          "inferText": "교부번호:",
+          "inferConfidence": 0.99796885,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 86.0,
+                "y": 80.0
+              },
+              {
+                "x": 178.0,
+                "y": 80.0
+              },
+              {
+                "x": 178.0,
+                "y": 91.0
+              },
+              {
+                "x": 86.0,
+                "y": 92.0
+              }
+            ]
+          },
+          "inferText": "2026-1124-004",
+          "inferConfidence": 0.99979883,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 179.0,
+                "y": 81.0
+              },
+              {
+                "x": 183.0,
+                "y": 80.0
+              },
+              {
+                "x": 184.0,
+                "y": 90.0
+              },
+              {
+                "x": 180.0,
+                "y": 91.0
+              }
+            ]
+          },
+          "inferText": "|",
+          "inferConfidence": 0.69459176,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 187.0,
+                "y": 77.0
+              },
+              {
+                "x": 232.0,
+                "y": 77.0
+              },
+              {
+                "x": 232.0,
+                "y": 92.0
+              },
+              {
+                "x": 187.0,
+                "y": 92.0
+              }
+            ]
+          },
+          "inferText": "처방일:",
+          "inferConfidence": 0.69459176,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 233.0,
+                "y": 80.0
+              },
+              {
+                "x": 304.0,
+                "y": 80.0
+              },
+              {
+                "x": 304.0,
+                "y": 91.0
+              },
+              {
+                "x": 233.0,
+                "y": 92.0
+              }
+            ]
+          },
+          "inferText": "2026-11-24",
+          "inferConfidence": 0.9999323,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 27.0,
+                "y": 99.0
+              },
+              {
+                "x": 84.0,
+                "y": 99.0
+              },
+              {
+                "x": 84.0,
+                "y": 113.0
+              },
+              {
+                "x": 27.0,
+                "y": 113.0
+              }
+            ]
+          },
+          "inferText": "의료기관:",
+          "inferConfidence": 0.9987299,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 86.0,
+                "y": 99.0
+              },
+              {
+                "x": 178.0,
+                "y": 99.0
+              },
+              {
+                "x": 178.0,
+                "y": 114.0
+              },
+              {
+                "x": 86.0,
+                "y": 114.0
+              }
+            ]
+          },
+          "inferText": "논공이비인후과",
+          "inferConfidence": 0.99701273,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 190.0,
+                "y": 99.0
+              },
+              {
+                "x": 247.0,
+                "y": 99.0
+              },
+              {
+                "x": 247.0,
+                "y": 113.0
+              },
+              {
+                "x": 190.0,
+                "y": 113.0
+              }
+            ]
+          },
+          "inferText": "환자성명:",
+          "inferConfidence": 0.99777126,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 248.0,
+                "y": 99.0
+              },
+              {
+                "x": 292.0,
+                "y": 99.0
+              },
+              {
+                "x": 293.0,
+                "y": 114.0
+              },
+              {
+                "x": 248.0,
+                "y": 114.0
+              }
+            ]
+          },
+          "inferText": "[비식별",
+          "inferConfidence": 0.9991242,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 297.0,
+                "y": 99.0
+              },
+              {
+                "x": 328.0,
+                "y": 99.0
+              },
+              {
+                "x": 328.0,
+                "y": 114.0
+              },
+              {
+                "x": 297.0,
+                "y": 114.0
+              }
+            ]
+          },
+          "inferText": "샘플]",
+          "inferConfidence": 0.9957216,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 61.0,
+                "y": 138.0
+              },
+              {
+                "x": 114.0,
+                "y": 138.0
+              },
+              {
+                "x": 114.0,
+                "y": 152.0
+              },
+              {
+                "x": 61.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "의약품명",
+          "inferConfidence": 0.9992342,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 154.0,
+                "y": 138.0
+              },
+              {
+                "x": 175.0,
+                "y": 138.0
+              },
+              {
+                "x": 175.0,
+                "y": 152.0
+              },
+              {
+                "x": 154.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "1회",
+          "inferConfidence": 0.99579924,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 179.0,
+                "y": 138.0
+              },
+              {
+                "x": 220.0,
+                "y": 138.0
+              },
+              {
+                "x": 220.0,
+                "y": 152.0
+              },
+              {
+                "x": 179.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "투약량",
+          "inferConfidence": 0.99579924,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 233.0,
+                "y": 138.0
+              },
+              {
+                "x": 254.0,
+                "y": 138.0
+              },
+              {
+                "x": 254.0,
+                "y": 152.0
+              },
+              {
+                "x": 233.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "1일",
+          "inferConfidence": 0.99581474,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 258.0,
+                "y": 138.0
+              },
+              {
+                "x": 285.0,
+                "y": 138.0
+              },
+              {
+                "x": 285.0,
+                "y": 152.0
+              },
+              {
+                "x": 258.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "횟수",
+          "inferConfidence": 0.99581474,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 299.0,
+                "y": 138.0
+              },
+              {
+                "x": 312.0,
+                "y": 138.0
+              },
+              {
+                "x": 312.0,
+                "y": 152.0
+              },
+              {
+                "x": 299.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "총",
+          "inferConfidence": 0.86412925,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 317.0,
+                "y": 138.0
+              },
+              {
+                "x": 343.0,
+                "y": 138.0
+              },
+              {
+                "x": 343.0,
+                "y": 152.0
+              },
+              {
+                "x": 317.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "일수",
+          "inferConfidence": 0.86412925,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 373.0,
+                "y": 138.0
+              },
+              {
+                "x": 399.0,
+                "y": 138.0
+              },
+              {
+                "x": 399.0,
+                "y": 152.0
+              },
+              {
+                "x": 373.0,
+                "y": 152.0
+              }
+            ]
+          },
+          "inferText": "용법",
+          "inferConfidence": 0.9991272,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 35.0,
+                "y": 168.0
+              },
+              {
+                "x": 139.0,
+                "y": 168.0
+              },
+              {
+                "x": 139.0,
+                "y": 182.0
+              },
+              {
+                "x": 35.0,
+                "y": 182.0
+              }
+            ]
+          },
+          "inferText": "코대원포르테시럽",
+          "inferConfidence": 0.9944206,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 170.0,
+                "y": 170.0
+              },
+              {
+                "x": 204.0,
+                "y": 170.0
+              },
+              {
+                "x": 204.0,
+                "y": 181.0
+              },
+              {
+                "x": 170.0,
+                "y": 181.0
+              }
+            ]
+          },
+          "inferText": "20mL",
+          "inferConfidence": 0.9976478,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 248.0,
+                "y": 168.0
+              },
+              {
+                "x": 269.0,
+                "y": 168.0
+              },
+              {
+                "x": 269.0,
+                "y": 182.0
+              },
+              {
+                "x": 248.0,
+                "y": 182.0
+              }
+            ]
+          },
+          "inferText": "3회",
+          "inferConfidence": 0.99883145,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 309.0,
+                "y": 168.0
+              },
+              {
+                "x": 331.0,
+                "y": 168.0
+              },
+              {
+                "x": 331.0,
+                "y": 182.0
+              },
+              {
+                "x": 309.0,
+                "y": 182.0
+              }
+            ]
+          },
+          "inferText": "3일",
+          "inferConfidence": 0.9985964,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 358.0,
+                "y": 168.0
+              },
+              {
+                "x": 384.0,
+                "y": 168.0
+              },
+              {
+                "x": 384.0,
+                "y": 182.0
+              },
+              {
+                "x": 358.0,
+                "y": 182.0
+              }
+            ]
+          },
+          "inferText": "식후",
+          "inferConfidence": 0.9953981,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 387.0,
+                "y": 168.0
+              },
+              {
+                "x": 416.0,
+                "y": 168.0
+              },
+              {
+                "x": 416.0,
+                "y": 182.0
+              },
+              {
+                "x": 387.0,
+                "y": 182.0
+              }
+            ]
+          },
+          "inferText": "30분",
+          "inferConfidence": 0.9953981,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 62.0,
+                "y": 198.0
+              },
+              {
+                "x": 113.0,
+                "y": 198.0
+              },
+              {
+                "x": 113.0,
+                "y": 212.0
+              },
+              {
+                "x": 62.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "펠루비정",
+          "inferConfidence": 0.99287474,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 176.0,
+                "y": 198.0
+              },
+              {
+                "x": 196.0,
+                "y": 198.0
+              },
+              {
+                "x": 196.0,
+                "y": 212.0
+              },
+              {
+                "x": 176.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "1정",
+          "inferConfidence": 0.9245139,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 248.0,
+                "y": 198.0
+              },
+              {
+                "x": 269.0,
+                "y": 198.0
+              },
+              {
+                "x": 269.0,
+                "y": 212.0
+              },
+              {
+                "x": 248.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "3회",
+          "inferConfidence": 0.99886215,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 309.0,
+                "y": 198.0
+              },
+              {
+                "x": 331.0,
+                "y": 198.0
+              },
+              {
+                "x": 331.0,
+                "y": 212.0
+              },
+              {
+                "x": 309.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "3일",
+          "inferConfidence": 0.99848384,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 358.0,
+                "y": 198.0
+              },
+              {
+                "x": 384.0,
+                "y": 198.0
+              },
+              {
+                "x": 384.0,
+                "y": 212.0
+              },
+              {
+                "x": 358.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "식후",
+          "inferConfidence": 0.9952188,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 387.0,
+                "y": 198.0
+              },
+              {
+                "x": 416.0,
+                "y": 198.0
+              },
+              {
+                "x": 416.0,
+                "y": 212.0
+              },
+              {
+                "x": 387.0,
+                "y": 212.0
+              }
+            ]
+          },
+          "inferText": "30분",
+          "inferConfidence": 0.9952188,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 55.0,
+                "y": 228.0
+              },
+              {
+                "x": 120.0,
+                "y": 228.0
+              },
+              {
+                "x": 120.0,
+                "y": 242.0
+              },
+              {
+                "x": 55.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "무코스타정",
+          "inferConfidence": 0.9991603,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 176.0,
+                "y": 228.0
+              },
+              {
+                "x": 196.0,
+                "y": 228.0
+              },
+              {
+                "x": 196.0,
+                "y": 242.0
+              },
+              {
+                "x": 176.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "1정",
+          "inferConfidence": 0.91053265,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 248.0,
+                "y": 228.0
+              },
+              {
+                "x": 269.0,
+                "y": 228.0
+              },
+              {
+                "x": 269.0,
+                "y": 242.0
+              },
+              {
+                "x": 248.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "3회",
+          "inferConfidence": 0.9986247,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 310.0,
+                "y": 228.0
+              },
+              {
+                "x": 331.0,
+                "y": 228.0
+              },
+              {
+                "x": 331.0,
+                "y": 242.0
+              },
+              {
+                "x": 310.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "3일",
+          "inferConfidence": 0.9987821,
+          "type": "NORMAL",
+          "lineBreak": true
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 358.0,
+                "y": 228.0
+              },
+              {
+                "x": 384.0,
+                "y": 228.0
+              },
+              {
+                "x": 384.0,
+                "y": 242.0
+              },
+              {
+                "x": 358.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "식후",
+          "inferConfidence": 0.99201643,
+          "type": "NORMAL",
+          "lineBreak": false
+        },
+        {
+          "valueType": "ALL",
+          "boundingPoly": {
+            "vertices": [
+              {
+                "x": 387.0,
+                "y": 228.0
+              },
+              {
+                "x": 416.0,
+                "y": 228.0
+              },
+              {
+                "x": 416.0,
+                "y": 242.0
+              },
+              {
+                "x": 387.0,
+                "y": 242.0
+              }
+            ]
+          },
+          "inferText": "30분",
+          "inferConfidence": 0.99201643,
+          "type": "NORMAL",
+          "lineBreak": true
+        }
+      ]
+    }
+  ]
+}

@@ -36,3 +36,7 @@ class Config(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 14 * 24 * 60
     JWT_LEEWAY: int = 5
+
+    # CLOVA General OCR (6장 처방 등록). 콘솔 Domain > API Gateway 연동의 Invoke URL과 Secret Key
+    CLOVA_OCR_URL: str = ""
+    CLOVA_OCR_SECRET: str = ""
