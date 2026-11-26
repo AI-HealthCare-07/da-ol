@@ -17,6 +17,15 @@ class SignupType(StrEnum):
     PARTNER = "partner"  # [3차] 초대 링크로 들어온 파트너 간단 가입
 
 
+class ConsentType(StrEnum):
+    TERMS = "terms"
+    PRIVACY = "privacy"
+    SENSITIVE_HEALTH = "sensitive_health"  # 민감정보(건강정보) 별도 동의
+    KAKAO_MESSAGE = "kakao_message"  # [2차] 카카오톡 메시지 선택 동의. 1차 로그인 때는 받지 않음
+    PARTNER_SHARE = "partner_share"  # [3차]
+    PARTNER_RECEIVE = "partner_receive"  # [3차]
+
+
 class Gender(StrEnum):
     # ERD는 varchar(10)만 정의. 값은 API 명세 4장 기준
     MALE = "male"
