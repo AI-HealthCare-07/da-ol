@@ -111,3 +111,20 @@ def test_normalize_drug_name_values(name, expected):
 
 def test_strength_differs_stays_different():
     assert normalize_drug_name("아모잘탄정5/50밀리그램") != normalize_drug_name("아모잘탄정 5/100mg")
+
+
+# 약봉투 '귀하' 앞 이름 (실제 CLOVA 응답 case11: '김다올 님 귀하')
+@pytest.mark.parametrize("text, expected", [
+    ("김다올 님 귀하 (비식별 샘플)", "[이름] 님 귀하 (비식별 샘플)"),
+    ("김다올님 귀하", "[이름]님 귀하"),
+    ("김다올님귀하", "[이름]님귀하"),
+    ("김다올 귀하", "[이름] 귀하"),
+    ("김다올귀하", "[이름]귀하"),
+])
+def test_mask_name_before_gwiha(text, expected):
+    assert mask_text(text) == expected
+
+
+@pytest.mark.parametrize("text", ["약사님 확인", "조제약사", "귀하의 건강을 위해"])
+def test_gwiha_rule_does_not_overmask(text):
+    assert mask_text(text) == text

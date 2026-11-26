@@ -480,3 +480,24 @@ def test_cleanup_skips_doc_confirmed_in_between():
     deps.repo.doc = replace(stale, status=DocumentStatus.CONFIRMED)   # 목록을 뽑은 뒤 확정됨
     run(sp.run_cleanup(deps, [stale]))
     assert deps.repo.doc.status == DocumentStatus.CONFIRMED
+
+
+def test_mask_lines_phone_split_over_two_lines():
+    # 실제 CLOVA 응답 case12: '연락처: 010-' / '0000-0000' 이 두 줄로 나뉨
+    lines = [
+        sp.make_line(1, 4, [W("주민등록번호:", 0.99), W("000101-3000000", 0.99), W("|", 0.99),
+                            W("연락처:", 0.99), W("010-", 0.99)]),
+        sp.make_line(1, 5, [W("0000-0000", 1.0)]),
+        sp.make_line(1, 6, [W("의약품명", 0.99)]),
+    ]
+    masked = sp.mask_lines(lines)
+    assert masked[0].text == "주민등록번호: [주민번호] | 연락처: [연락처]"
+    assert masked[1].text == ""
+    assert masked[2].text == "의약품명"
+    assert [ln.line_idx for ln in masked] == [4, 5, 6]
+
+
+def test_mask_lines_same_as_mask_line_when_not_split():
+    lines = [sp.make_line(1, 0, [W("TEL:", 0.99), W("053-123-4567", 0.99)]),
+             sp.make_line(1, 1, [W("세토펜정", 0.99), W("1정", 0.99), W("3회", 0.99), W("3일", 0.99)])]
+    assert [ln.text for ln in sp.mask_lines(lines)] == [sp.mask_line(ln).text for ln in lines]

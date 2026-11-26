@@ -3,7 +3,7 @@
 기준: API 명세서 6장, 계약 app/dtos/scan.py(v1.1), 공용 함수 app/services/text_rules.py(6-4)
 
 구성
-- 순수 함수(동기, 테스트 있음): mask_line, build_field, build_scan_drug, apply_edits,
+- 순수 함수(동기, 테스트 있음): mask_lines, build_field, build_scan_drug, apply_edits,
   can_repick_doc_type, is_timed_out, select_cleanup_actions
 - 오케스트레이션(async): run_scan_job, assemble_parsed_result, get_scan, lookup_edit_drugs,
   repick_doc_type, confirm_scan, cancel_scan, run_cleanup
@@ -28,7 +28,7 @@ from typing import Any, Awaitable, Callable, Protocol
 
 from pydantic import BaseModel
 
-from app.services.text_rules import apply_mask_spans, find_mask_spans, parse_dose_text
+from app.services.text_rules import MaskSpan, apply_mask_spans, find_mask_spans, parse_dose_text
 from app.dtos.scan import (
     CONFIRM_ALLOWED_TIMINGS, DOC_TYPE_RETRY_REASONS, FAIL_MESSAGES,
     ConfirmRequest, Cycle, CycleType, DocType, DocumentStatus, Dosage, DosePerTimeField,
@@ -104,11 +104,10 @@ def make_line(page_no: int, line_idx: int, words: list[OcrWord]) -> OcrLine:
     return OcrLine(page_no, line_idx, placed, " ".join(w.text for w in placed))
 
 
-def mask_line(line: OcrLine) -> OcrLine:
-    """② 줄 단위로 가립니다. '성명'과 이름이 다른 단어여도 같은 줄이면 잡힙니다.
+def _apply_spans_to_line(line: OcrLine, spans: list[MaskSpan]) -> OcrLine:
+    """줄 글자 기준 구간(spans)을 단어별로 나눠 가립니다.
     여러 단어에 걸친 구간은 첫 단어에 토큰을 두고 나머지 단어에서는 그 부분을 지웁니다.
-    단어 신뢰도는 그대로 둡니다(6-2 칸 신뢰도 계산용)."""
-    spans = find_mask_spans(line.text)
+    토큰이 빈 글자("")인 구간은 지우기만 합니다(이웃 줄에 토큰이 있는 경우)."""
     if not spans:
         return line
     used: set[int] = set()
@@ -123,6 +122,42 @@ def mask_line(line: OcrLine) -> OcrLine:
             used.add(i)
         new_words.append(replace(w, text=apply_mask_spans(w.text, local)) if local else w)
     return make_line(line.page_no, line.line_idx, new_words)
+
+
+def mask_line(line: OcrLine) -> OcrLine:
+    """② 줄 단위로 가립니다. '성명'과 이름이 다른 단어여도 같은 줄이면 잡힙니다.
+    단어 신뢰도는 그대로 둡니다(6-2 칸 신뢰도 계산용)."""
+    return _apply_spans_to_line(line, find_mask_spans(line.text))
+
+
+def _cross_line_spans(a: str, b: str) -> tuple[list[MaskSpan], list[MaskSpan]]:
+    """두 줄을 공백 하나로 이어 붙였을 때 '경계를 걸치는' 구간만 각 줄 위치로 나눠 돌려줍니다.
+    토큰은 앞 줄에만 두고 뒷줄은 지우기만 합니다."""
+    cut = len(a) + 1
+    spans_a: list[MaskSpan] = []
+    spans_b: list[MaskSpan] = []
+    for s, e, token in find_mask_spans(f"{a} {b}"):
+        if s < len(a) and e > cut:
+            spans_a.append((s, len(a), token))
+            spans_b.append((0, e - cut, ""))
+    return spans_a, spans_b
+
+
+def mask_lines(lines: list[OcrLine]) -> list[OcrLine]:
+    """② 한 페이지의 줄들을 가립니다. 줄 안의 개인정보에 더해,
+    줄바꿈으로 두 줄에 나뉜 값('연락처: 010-' / '0000-0000')도 이웃한 줄을 이어 보고 가립니다.
+    반드시 가리기 전 원문 줄에 적용합니다."""
+    extra: list[list[MaskSpan]] = [[] for _ in lines]
+    for i in range(len(lines) - 1):
+        a, b = _cross_line_spans(lines[i].text, lines[i + 1].text)
+        extra[i] += a
+        extra[i + 1] += b
+    out = []
+    for line, cross in zip(lines, extra, strict=True):
+        own = [sp for sp in find_mask_spans(line.text)
+               if all(sp[1] <= c[0] or sp[0] >= c[1] for c in cross)]
+        out.append(_apply_spans_to_line(line, sorted(cross + own)))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -383,7 +418,7 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
             for page_no, image in await deps.repo.page_images(scan_id):
                 raw_lines = await _retry(lambda: deps.ocr.read_page(image), retries=OCR_MAX_RETRY,
                                          fail=FailReason.OCR_ERROR, timeout=OCR_TIMEOUT_SEC)
-                lines.extend(mask_line(replace(l, page_no=page_no)) for l in raw_lines)
+                lines.extend(mask_lines([replace(l, page_no=page_no) for l in raw_lines]))
                 await _check_alive(deps, scan_id)
             if is_no_text(lines):
                 raise ScanFailed(FailReason.NO_TEXT)
