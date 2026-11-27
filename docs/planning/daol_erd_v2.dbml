@@ -387,6 +387,9 @@ Table medical_documents [headercolor: #3B82F6] {
   confirmed_at timestamptz
   step varchar(20) [note: 'uploaded일 때 로딩 문구 단계: reading(글자 읽는 중) / structuring(정리 중). 다른 상태에서는 쓰지 않음 (채민 요청, 11/27)']
   masked_lines text [note: "가린 OCR 줄 JSON(page_no, line_idx, words[[글자, 신뢰도]]). 문서 종류를 다시 고를 때 OCR을 다시 부르지 않고 이 줄로 정리만 다시 함. document_pages.ocr_text(페이지 전체 글자)에는 줄 번호·글자별 신뢰도가 없어서 따로 둠. parsed_result처럼 마스킹 후 암호화(text). 확정·만료 시 NULL (NFR-004, 채민 요청 11/27)"]
+  Note: 'OCR-001~005. 한 번 업로드 = 처방 한 건 (병원명·처방일이 다르면 따로 등록 안내). 질병분류기호는 저장하지 않음'
+}
+
 
 Table document_pages [headercolor: #3B82F6] {
   id bigint [pk, increment]
