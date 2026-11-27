@@ -11,7 +11,7 @@ from PIL import Image
 
 from app.dtos.scan import ScanErrorCode
 from app.services import scan_upload as su
-from app.services.scan_upload import UploadedFile, UploadError, detect_kind, prepare_pages
+from app.services.scan_upload import UploadedFile, UploadError, detect_kind, prepare_pages, read_uploads
 
 ENCRYPTED_PDF = (Path(__file__).parent / "fixtures" / "upload" / "encrypted.pdf").read_bytes()
 
@@ -196,3 +196,40 @@ def test_broken_pdf_after_encrypted_pdf_is_not_called_encrypted():
     assert error_of([f(ENCRYPTED_PDF)]).code == ScanErrorCode.ENCRYPTED_PDF
     assert error_of([f(empty_pdf())]).code == ScanErrorCode.INVALID_FILE
     assert error_of([f(b"%PDF-1.4 broken")]).code == ScanErrorCode.INVALID_FILE
+
+
+# ---------------------------------------------------------------------------
+# read_uploads: 한도까지만 읽기
+# ---------------------------------------------------------------------------
+class FakeUpload:
+    def __init__(self, name: str, data: bytes):
+        self.filename = name
+        self._buf = io.BytesIO(data)
+        self.asked: list[int] = []
+
+    async def read(self, size: int = -1) -> bytes:
+        self.asked.append(size)
+        return self._buf.read(size)
+
+
+async def test_read_uploads_reads_at_most_limit_plus_one(monkeypatch):
+    monkeypatch.setattr(su, "MAX_FILE_BYTES", 10)
+    big = FakeUpload("big.jpg", b"x" * 1000)
+    with pytest.raises(su.UploadError) as e:
+        await read_uploads([big])
+    assert e.value.code == su.ScanErrorCode.FILE_TOO_LARGE and e.value.file_index == 0
+    assert big.asked == [11]  # 전체를 읽지 않고 한도 + 1바이트만
+
+
+async def test_read_uploads_stops_when_total_exceeded(monkeypatch):
+    monkeypatch.setattr(su, "MAX_TOTAL_BYTES", 15)
+    first, second, third = FakeUpload("a", b"x" * 10), FakeUpload("b", b"x" * 10), FakeUpload("c", b"x")
+    with pytest.raises(su.UploadError) as e:
+        await read_uploads([first, second, third])
+    assert e.value.code == su.ScanErrorCode.FILE_TOO_LARGE and e.value.file_index is None
+    assert third.asked == []  # 합계를 넘으면 남은 파일은 읽지 않음
+
+
+async def test_read_uploads_keeps_names_and_order():
+    files = await read_uploads([FakeUpload("앞.jpg", b"1"), FakeUpload("뒤.jpg", b"2")])
+    assert [(f.name, f.data) for f in files] == [("앞.jpg", b"1"), ("뒤.jpg", b"2")]

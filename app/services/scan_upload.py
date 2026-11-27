@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import warnings
 from dataclasses import dataclass
+from typing import Protocol
 
 import pypdfium2 as pdfium
 from PIL import Image, UnidentifiedImageError
@@ -80,6 +81,33 @@ class PageImage:
     file_size_bytes: int  # 원본 파일 크기. PDF는 페이지마다 같은 값(ERD)
     image: bytes
     image_kind: str  # "jpg" / "png" (CLOVA 요청 format)
+
+
+class ReadableUpload(Protocol):
+    """FastAPI UploadFile과 같은 모양(이름 + async read)."""
+
+    filename: str | None
+
+    async def read(self, size: int = -1) -> bytes: ...
+
+
+async def read_uploads(uploads: list[ReadableUpload]) -> list[UploadedFile]:
+    """업로드 파일을 한 개당 MAX_FILE_BYTES + 1바이트까지만 읽습니다.
+
+    다 읽은 뒤에 크기를 재면 아주 큰 파일이 메모리에 통째로 올라오므로, 한도를 넘는 순간 FILE_TOO_LARGE로 막습니다.
+    합계(30MB)는 읽으면서 더해 보고, 넘으면 남은 파일은 읽지 않습니다.
+    """
+    files: list[UploadedFile] = []
+    total = 0
+    for i, upload in enumerate(uploads):
+        data = await upload.read(MAX_FILE_BYTES + 1)
+        if len(data) > MAX_FILE_BYTES:
+            raise UploadError(ScanErrorCode.FILE_TOO_LARGE, i)
+        total += len(data)
+        if total > MAX_TOTAL_BYTES:
+            raise UploadError(ScanErrorCode.FILE_TOO_LARGE)
+        files.append(UploadedFile(upload.filename, data))
+    return files
 
 
 def detect_kind(data: bytes) -> str | None:
