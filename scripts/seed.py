@@ -304,7 +304,7 @@ async def _seed_condition_and_schedules(
     end_date: date,
     today_kst: date,
 ) -> tuple[int, int]:
-    """복용 조건 1건과 평일·주말 시간표, 복용 기간 내 복약 로그를 생성한다."""
+    """복용 조건 1건과 기본 일과(weekday) 시간표, 복용 기간 내 복약 로그를 생성한다."""
     cond_type_raw = cond.get("condition_type")
     meal_raw = cond.get("meal")
     time_basis = TimeBasis(cond["time_basis"])
@@ -327,14 +327,13 @@ async def _seed_condition_and_schedules(
     calc_time = _parse_time(cond.get("calculated_time"))
     sched_status = ScheduleStatus(cond["status"])
 
-    # 주말에 실행해도 홈이 비지 않도록 평일·주말 일정 모두 생성
-    for day_type in (DayType.WEEKDAY, DayType.WEEKEND):
-        await DoseSchedule.create(
-            dose_condition=condition,
-            day_type=day_type,
-            calculated_time=calc_time,
-            status=sched_status,
-        )
+    # 1차는 기본 일과로 weekday 한 행만 생성 (주말에도 weekday 행을 그대로 사용)
+    await DoseSchedule.create(
+        dose_condition=condition,
+        day_type=DayType.WEEKDAY,
+        calculated_time=calc_time,
+        status=sched_status,
+    )
 
     intakes_created = 0
     if sched_status == ScheduleStatus.OK and calc_time is not None:
@@ -349,7 +348,7 @@ async def _seed_condition_and_schedules(
             end_date=end_date,
             today_kst=today_kst,
         )
-    return 2, intakes_created
+    return 1, intakes_created
 
 
 async def _seed_confirmed_case(
