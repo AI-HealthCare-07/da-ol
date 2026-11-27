@@ -9,9 +9,9 @@ import pypdfium2 as pdfium
 import pytest
 from PIL import Image
 
-from app.dtos.scan import ScanErrorCode
+from app.core.exceptions import ErrorCode
 from app.services import scan_upload as su
-from app.services.scan_upload import UploadedFile, UploadError, detect_kind, prepare_pages
+from app.services.scan_upload import UploadedFile, UploadError, detect_kind, prepare_pages, read_uploads
 
 ENCRYPTED_PDF = (Path(__file__).parent / "fixtures" / "upload" / "encrypted.pdf").read_bytes()
 
@@ -76,25 +76,25 @@ def test_one_file_too_large(monkeypatch):
     small = image_bytes(size=(1, 1))
     monkeypatch.setattr(su, "MAX_FILE_BYTES", len(small) + 10)
     e = error_of([f(small), f(b"\xff\xd8\xff" + b"0" * (len(small) + 50))])
-    assert e.code == ScanErrorCode.FILE_TOO_LARGE and e.status_code == 413 and e.file_index == 1
+    assert e.code == ErrorCode.FILE_TOO_LARGE and e.status_code == 413 and e.file_index == 1
 
 
 def test_total_too_large(monkeypatch):
     data = image_bytes()
     monkeypatch.setattr(su, "MAX_TOTAL_BYTES", len(data) * 2)  # 하나씩은 괜찮지만 셋을 합치면 넘음
     e = error_of([f(data), f(data), f(data)])
-    assert e.code == ScanErrorCode.FILE_TOO_LARGE and e.file_index is None
+    assert e.code == ErrorCode.FILE_TOO_LARGE and e.file_index is None
 
 
 @pytest.mark.parametrize("data", [b"GIF89a....", b"hello", b"", b"PK\x03\x04 zip"])
 def test_unsupported_type_by_content(data):
     e = error_of([f(data, "이름만.jpg")])  # 확장자가 jpg여도 내용으로 판단
-    assert e.code == ScanErrorCode.UNSUPPORTED_FILE_TYPE and e.status_code == 415
+    assert e.code == ErrorCode.UNSUPPORTED_FILE_TYPE and e.status_code == 415
 
 
 def test_encrypted_pdf():
     e = error_of([f(image_bytes()), f(ENCRYPTED_PDF)])
-    assert e.code == ScanErrorCode.ENCRYPTED_PDF and e.status_code == 422 and e.file_index == 1
+    assert e.code == ErrorCode.ENCRYPTED_PDF and e.status_code == 422 and e.file_index == 1
 
 
 @pytest.mark.parametrize(
@@ -107,14 +107,14 @@ def test_encrypted_pdf():
 )
 def test_invalid_file(data):
     e = error_of([f(data)])
-    assert e.code == ScanErrorCode.INVALID_FILE and e.status_code == 422
+    assert e.code == ErrorCode.INVALID_FILE and e.status_code == 422
 
 
 def test_too_many_pages_counted_before_rendering(monkeypatch):
     rendered = []
     monkeypatch.setattr(su, "_render_pdf", lambda pdf, i: rendered.append(i) or [])
     e = error_of([f(image_bytes()), f(pdf_bytes(su.MAX_PAGES))])  # 1 + 10 = 11장
-    assert e.code == ScanErrorCode.TOO_MANY_PAGES and e.file_index is None
+    assert e.code == ErrorCode.TOO_MANY_PAGES and e.file_index is None
     assert rendered == []  # 넘는 걸 알면 PDF를 그리지 않음
 
 
@@ -145,7 +145,7 @@ def png_with_header_size(width: int, height: int) -> bytes:
 )
 def test_decompression_bomb_image_is_invalid(width, height):
     e = error_of([f(png_with_header_size(width, height))])
-    assert e.code == ScanErrorCode.INVALID_FILE and e.file_index == 0
+    assert e.code == ErrorCode.INVALID_FILE and e.file_index == 0
 
 
 def test_large_but_normal_photo_passes():
@@ -188,11 +188,48 @@ def empty_pdf() -> bytes:
 
 def test_empty_pdf_reports_its_file_index():
     e = error_of([f(image_bytes()), f(empty_pdf())])  # 사진 + 쪽이 없는 PDF
-    assert e.code == ScanErrorCode.INVALID_FILE and e.file_index == 1
+    assert e.code == ErrorCode.INVALID_FILE and e.file_index == 1
 
 
 def test_broken_pdf_after_encrypted_pdf_is_not_called_encrypted():
     # PDFium이 이전 호출의 '비밀번호 오류' 코드를 그대로 돌려주는 경우가 있어, 순서와 상관없이 맞게 나와야 함
-    assert error_of([f(ENCRYPTED_PDF)]).code == ScanErrorCode.ENCRYPTED_PDF
-    assert error_of([f(empty_pdf())]).code == ScanErrorCode.INVALID_FILE
-    assert error_of([f(b"%PDF-1.4 broken")]).code == ScanErrorCode.INVALID_FILE
+    assert error_of([f(ENCRYPTED_PDF)]).code == ErrorCode.ENCRYPTED_PDF
+    assert error_of([f(empty_pdf())]).code == ErrorCode.INVALID_FILE
+    assert error_of([f(b"%PDF-1.4 broken")]).code == ErrorCode.INVALID_FILE
+
+
+# ---------------------------------------------------------------------------
+# read_uploads: 한도까지만 읽기
+# ---------------------------------------------------------------------------
+class FakeUpload:
+    def __init__(self, name: str, data: bytes):
+        self.filename = name
+        self._buf = io.BytesIO(data)
+        self.asked: list[int] = []
+
+    async def read(self, size: int = -1) -> bytes:
+        self.asked.append(size)
+        return self._buf.read(size)
+
+
+async def test_read_uploads_reads_at_most_limit_plus_one(monkeypatch):
+    monkeypatch.setattr(su, "MAX_FILE_BYTES", 10)
+    big = FakeUpload("big.jpg", b"x" * 1000)
+    with pytest.raises(su.UploadError) as e:
+        await read_uploads([big])
+    assert e.value.code == ErrorCode.FILE_TOO_LARGE and e.value.file_index == 0
+    assert big.asked == [11]  # 전체를 읽지 않고 한도 + 1바이트만
+
+
+async def test_read_uploads_stops_when_total_exceeded(monkeypatch):
+    monkeypatch.setattr(su, "MAX_TOTAL_BYTES", 15)
+    first, second, third = FakeUpload("a", b"x" * 10), FakeUpload("b", b"x" * 10), FakeUpload("c", b"x")
+    with pytest.raises(su.UploadError) as e:
+        await read_uploads([first, second, third])
+    assert e.value.code == ErrorCode.FILE_TOO_LARGE and e.value.file_index is None
+    assert third.asked == []  # 합계를 넘으면 남은 파일은 읽지 않음
+
+
+async def test_read_uploads_keeps_names_and_order():
+    files = await read_uploads([FakeUpload("앞.jpg", b"1"), FakeUpload("뒤.jpg", b"2")])
+    assert [(f.name, f.data) for f in files] == [("앞.jpg", b"1"), ("뒤.jpg", b"2")]

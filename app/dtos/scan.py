@@ -103,20 +103,6 @@ class ConditionReason(str, Enum):
     MEAL_UNKNOWN = "meal_unknown"
 
 
-class ScanErrorCode(str, Enum):  # 6-3 + 이 영역에서 쓰는 1-1 공통 코드
-    VALIDATION_ERROR = "VALIDATION_ERROR"
-    NOT_FOUND = "NOT_FOUND"
-    RATE_LIMITED = "RATE_LIMITED"
-    FILE_TOO_LARGE = "FILE_TOO_LARGE"
-    UNSUPPORTED_FILE_TYPE = "UNSUPPORTED_FILE_TYPE"
-    ENCRYPTED_PDF = "ENCRYPTED_PDF"
-    INVALID_FILE = "INVALID_FILE"
-    TOO_MANY_PAGES = "TOO_MANY_PAGES"
-    DOCUMENT_NOT_READY = "DOCUMENT_NOT_READY"
-    DOCUMENT_ALREADY_CONFIRMED = "DOCUMENT_ALREADY_CONFIRMED"
-    DOCUMENT_EXPIRED = "DOCUMENT_EXPIRED"
-
-
 # ===========================================================================
 # 공통 조각 (6-2)
 # ===========================================================================
@@ -357,6 +343,6 @@ class ConfirmResponse(BaseModel):
 # 에러 (1-1)
 # ===========================================================================
 class ErrorResponse(BaseModel):
-    code: ScanErrorCode
+    code: str  # 값은 app.core.exceptions.ErrorCode (dtos가 app.core를 불러오지 않게 글자로 둠)
     message: str
     fields: dict[str, str] | None = None  # {"drugs[1].total_days": "사유 문장"}

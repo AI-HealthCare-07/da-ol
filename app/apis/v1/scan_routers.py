@@ -5,18 +5,45 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from app.apis.v1.stubs import not_implemented
+from app.core.exceptions import AppError
 from app.dependencies.security import get_request_user
+from app.dtos.scan import DocType
 from app.models.users import User
+from app.services.scan_upload import UploadError, prepare_pages, read_uploads
 
 scan_router = APIRouter(tags=["scans"])
 
 
+def upload_error(e: UploadError) -> AppError:
+    """파일 검사 실패 → 1-1 에러 형식({code, message}). 6-3 상태 코드·문구 그대로."""
+    return AppError(e.status_code, e.code, e.message)
+
+
 @scan_router.post("/scans", status_code=status.HTTP_202_ACCEPTED)
-async def upload_scan(_user: Annotated[User, Depends(get_request_user)]):
-    """처방전·약봉투 파일 업로드 → 읽기 시작 (OCR-001·002, B-1)"""
+async def upload_scan(
+    _user: Annotated[User, Depends(get_request_user)],
+    files: Annotated[list[UploadFile], File(description="jpg·png·pdf, 1개 10MB·합계 30MB, 올린 순서대로 페이지 번호")],
+    doc_type: Annotated[DocType, Form(description="prescription(처방전) / pill_envelope(약봉투)")],
+):
+    """처방전·약봉투 파일 업로드 → 읽기 시작 (OCR-001·002, B-1)
+
+    파일 크기·형식·암호·손상·페이지 수 검사는 요청을 받을 때 끝내고(6장 비고), 통과한 경우에만 202를 돌려줍니다.
+    """
+    try:
+        uploaded = await read_uploads(files)
+        # PDF 그리기는 무거운 일반 함수라 스레드에서 돌림. 이벤트 루프에서 바로 부르면 그리는 동안
+        # 다른 요청(챗봇 답변 흐름 등)이 모두 멈춤
+        pages = await run_in_threadpool(prepare_pages, uploaded)
+    except UploadError as e:
+        raise upload_error(e) from None  # 파일 내용은 메시지·로그에 남기지 않음
+
+    # TODO(다음 단계): pages·doc_type으로 하루 20회 제한(RATE_LIMITED) 확인 → 문서·페이지 저장
+    # (scan_repository·FileStore) → run_scan_job 시작 → 202. 그 전까지 검사를 통과하면 501
+    del pages, doc_type
     return not_implemented()
 
 
