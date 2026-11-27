@@ -1,4 +1,4 @@
-"""공용 에러 응답 (명세 1-1): AppError · 422 VALIDATION_ERROR. DB 없이 작은 앱으로 확인합니다."""
+"""공용 에러 응답 (명세 1-1): AppError · 422 VALIDATION_ERROR · 404/405 · 500. DB 없이 작은 앱으로 확인합니다."""
 
 from datetime import date
 
@@ -25,6 +25,7 @@ class Body(BaseModel):
     nickname: str = Field(min_length=2)
     birth_date: date
     drugs: list[Drug] = []
+    flag: bool = False
 
 
 app = FastAPI()
@@ -39,6 +40,11 @@ async def create_item(body: Body) -> dict:
 @app.get("/boom")
 async def boom() -> dict:
     raise AppError(status.HTTP_404_NOT_FOUND, ErrorCode.NOT_FOUND, "처방을 찾을 수 없어요", extra={"hint": 1})
+
+
+@app.get("/crash")
+async def crash() -> dict:
+    raise RuntimeError("일부러 터뜨리는 에러")
 
 
 async def post(json: dict) -> dict:
@@ -75,15 +81,42 @@ async def test_list_item_uses_brackets():
 
 
 async def test_unknown_error_type_uses_default_message():
-    fields = await post({"nickname": "다올이", "birth_date": "어제"})
-    assert fields == {"birth_date": "날짜 형식이 맞지 않아요"}
+    # bool 칸에 목록 → bool_type. FIELD_MESSAGES 표에 없는 종류라 기본 문구
+    fields = await post({"nickname": "다올이", "birth_date": "1958-03-14", "flag": [1]})
+    assert fields == {"flag": "형식이 맞지 않아요"}
 
 
 async def test_broken_json_body():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/items", content=b"{", headers={"Content-Type": "application/json"})
+        response = await client.post("/items", content=b'{"drugs": [', headers={"Content-Type": "application/json"})
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert response.json()["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["code"] == "VALIDATION_ERROR"
+    assert body["fields"] == {"body": "요청 형식이 맞지 않아요"}  # 글자 위치("[11]")가 칸 이름으로 나가지 않게
+
+
+async def test_unknown_path_is_not_found():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/nope")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json() == {"code": "NOT_FOUND", "message": "요청한 주소를 찾을 수 없어요"}
+
+
+async def test_wrong_method_is_method_not_allowed():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/items")  # POST만 있음
+    assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+    assert response.json() == {"code": "METHOD_NOT_ALLOWED", "message": "지원하지 않는 요청 방식이에요"}
+    assert response.headers["allow"] == "POST"
+
+
+async def test_unhandled_error_is_internal_error():
+    # raise_app_exceptions=False: 테스트 클라이언트가 서버 에러를 다시 던지지 않고 응답을 받게
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/crash")
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json() == {"code": "INTERNAL_ERROR", "message": "잠시 후 다시 시도해 주세요"}
 
 
 async def test_app_error_response():
