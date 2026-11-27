@@ -9,7 +9,7 @@ import pytest
 import app.services.scan_service as sp
 from app.dtos.scan import DrugMatch, MatchStatus, ScanEditRequest
 from app.services.text_rules import is_suspicious_dose, parse_dose_text
-from app.tests.test_scan_service import NOW, FakeCatalog, FakeInstructions, parsed_after_job, run
+from app.tests.scan.fakes import NOW, FakeCatalog, FakeInstructions, parsed_after_job, run
 
 
 def apply(body: dict, base: dict) -> dict:

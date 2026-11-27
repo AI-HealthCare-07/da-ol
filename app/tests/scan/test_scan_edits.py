@@ -10,7 +10,7 @@ import pytest
 
 import app.services.scan_service as sp
 from app.dtos.scan import ScanEditRequest, ScanStep
-from app.tests.test_scan_service import (
+from app.tests.scan.fakes import (
     NOW,
     FakeCatalog,
     FakeInstructions,
