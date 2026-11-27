@@ -1,16 +1,18 @@
 """7장 가이드 API (가짜 응답). 명세서 7-1 ~ 7-3의 응답 예시를 그대로 돌려줍니다.
 
 - 아직 DB·AI와 연결하지 않았습니다. 프론트가 화면을 먼저 붙일 수 있게 하려는 임시 API예요.
-- 로그인 확인도 아직 없습니다(카카오 로그인 PR 뒤에 Depends(get_request_user)를 붙임).
+- 모든 API에 로그인 확인(Depens(get_request_user))을 붙였습니다. 테스트에서는ㄴ 가짜 회원으로 바꿔서 확인합니다.
 - mock_state는 가짜 응답 전용 값입니다. 실제 구현에서는 지웁니다.
 """
 
 import copy
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.apis.v1.examples import guide_chat_examples as examples
+from app.dependencies.security import get_request_user
+from app.models.users import User
 
 guide_router = APIRouter(tags=["guides (가짜 응답)"])
 
@@ -24,6 +26,7 @@ GUIDE_BY_STATE = {
 @guide_router.get("/prescriptions/{prescription_id}/guides", status_code=status.HTTP_200_OK)
 async def get_prescription_guides(
     prescription_id: int,
+    _user: Annotated[User, Depends(get_request_user)],
     mock_state: Literal["completed", "in_progress", "failed"] = Query(
         "completed", description="[가짜 응답 전용] 보고 싶은 상태"
     ),
@@ -35,7 +38,7 @@ async def get_prescription_guides(
 
 
 @guide_router.post("/prescriptions/{prescription_id}/guides/retry", status_code=status.HTTP_202_ACCEPTED)
-async def retry_prescription_guides(prescription_id: int) -> dict:
+async def retry_prescription_guides(prescription_id: int, _user: Annotated[User, Depends(get_request_user)]) -> dict:
     """7-2 실패한 가이드 다시 시도."""
     body = copy.deepcopy(examples.GUIDE_RETRY)
     body["prescription_id"] = prescription_id
@@ -43,7 +46,11 @@ async def retry_prescription_guides(prescription_id: int) -> dict:
 
 
 @guide_router.get("/guides", status_code=status.HTTP_200_OK)
-async def list_guides(page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=100)) -> dict:
+async def list_guides(
+    _user: Annotated[User, Depends(get_request_user)],
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+) -> dict:
     """7-3 내 가이드 목록."""
     body = copy.deepcopy(examples.GUIDE_LIST)
     body["page"] = page

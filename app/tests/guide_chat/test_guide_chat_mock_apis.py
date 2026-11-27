@@ -5,10 +5,21 @@ DB를 쓰지 않아서 TestCase 없이 async 함수로 씁니다(pytest asyncio_
 
 import json
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 from starlette import status
 
+from app.dependencies.security import get_request_user
 from app.main import app
+from app.models.users import User
+
+
+@pytest.fixture(autouse=True)
+def logged_in():
+    """로그인한 것처럼: 진짜 토큰 대신 가짜 회원을 돌려주게 바꿔 두고, 테스트가 끝나면 되돌립니다."""
+    app.dependency_overrides[get_request_user] = lambda: User(id=1)
+    yield
+    app.dependency_overrides.pop(get_request_user, None)
 
 
 def parse_sse(text: str) -> list[tuple[str, dict]]:
@@ -76,4 +87,4 @@ async def test_self_harm_has_no_answer():
 async def test_empty_question_is_rejected():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post("/api/v1/chat/sessions/77/messages", json={"content": ""})
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
