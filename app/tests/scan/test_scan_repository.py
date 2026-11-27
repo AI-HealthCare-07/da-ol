@@ -158,8 +158,25 @@ class ScanRepositoryTest(TestCase):
             DocumentStatus.UPLOADED, ScanStep.STRUCTURING, DocType.PILL_ENVELOPE,
         )  # fmt: skip
         assert got.fail_reason is None and got.processing_started_at == later
+
+    async def test_save_parsed_result_only_while_ocr_done(self):
+        doc = await self.create()
+        await self.repo.save_parsed_result(doc.scan_id, {"edited": True})  # 아직 읽는 중이면 무시
+        assert (await self.repo.get(doc.scan_id)).parsed_result is None
+        await self.repo.finish_ocr_done(doc.scan_id, {"edited": False})
         await self.repo.save_parsed_result(doc.scan_id, {"edited": True})
         assert (await self.repo.get(doc.scan_id)).parsed_result == {"edited": True}
+        await self.repo.expire(doc.scan_id)
+        await self.repo.save_parsed_result(doc.scan_id, {"edited": "늦게 온 저장"})  # 만료 뒤엔 무시
+        assert (await self.repo.get(doc.scan_id)).parsed_result is None
+
+    async def test_masked_lines_not_saved_after_cancel(self):
+        # OCR 도중 회원이 취소(expire) → 그 뒤에 끝난 OCR이 가린 줄을 저장하려 해도 남지 않음 (#96 리뷰)
+        doc = await self.create()
+        await self.repo.expire(doc.scan_id)
+        await self.repo.save_masked_lines(doc.scan_id, [{"page_no": 1, "line_idx": 0, "words": [["[이름]", 0.9]]}])
+        row = await MedicalDocument.get(id=doc.scan_id)
+        assert row.masked_lines is None
 
     # ---- 정리 작업 ----------------------------------------------------------
     async def test_cleanup_candidates(self):

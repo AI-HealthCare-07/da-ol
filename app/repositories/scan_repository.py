@@ -166,7 +166,11 @@ class ScanRepository:
         return [(page_no, await self._read_file(path)) for page_no, path in pages]
 
     async def save_masked_lines(self, scan_id: int, lines: list[dict]) -> None:
-        await MedicalDocument.filter(id=scan_id).update(masked_lines=_encode(lines))
+        # 읽는 중(uploaded)일 때만 저장. OCR 도중 회원이 취소하면 expire()가 비운 뒤에 다시 저장돼
+        # 만료 문서에 가린 줄이 남는 것을 막음(NFR-004, #96 리뷰)
+        await MedicalDocument.filter(id=scan_id, status=DocumentStatus.UPLOADED.value).update(
+            masked_lines=_encode(lines)
+        )
 
     async def load_masked_lines(self, scan_id: int) -> list[dict]:
         text = await MedicalDocument.filter(id=scan_id).first().values_list("masked_lines", flat=True)
@@ -176,7 +180,10 @@ class ScanRepository:
     # PATCH /scans (고친 값 저장·문서 종류 다시 고르기)
     # ------------------------------------------------------------------
     async def save_parsed_result(self, scan_id: int, parsed_result: dict) -> None:
-        await MedicalDocument.filter(id=scan_id).update(parsed_result=_encode(parsed_result))
+        # 고친 값 저장(PATCH ①)은 확인 화면(ocr_done)일 때만. 그사이 만료·확정된 문서에 다시 쓰지 않음
+        await MedicalDocument.filter(id=scan_id, status=DocumentStatus.OCR_DONE.value).update(
+            parsed_result=_encode(parsed_result)
+        )
 
     async def set_reprocessing(self, scan_id: int, doc_type: DocType, now: datetime, *, conn: Any = None) -> None:
         """문서 종류를 다시 골라 정리만 다시 함: uploaded / structuring, 90초 기준 시각을 지금으로."""
