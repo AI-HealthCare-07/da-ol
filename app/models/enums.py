@@ -127,3 +127,66 @@ class IntakeStatus(StrEnum):
     PENDING = "pending"
     TAKEN = "taken"
     MISSED = "missed"
+
+
+# ---- AI 가이드 · 챗봇 · RAG ----
+class RagSourceType(StrEnum):
+    # rag_documents.source_type (ERD는 varchar(20))
+    GUIDELINE = "guideline"  # 생활습관·질환 관리 공식 자료. 1차는 이것만
+    DRUG_INFO = "drug_info"  # [1차 미사용] 약 설명
+
+
+class PromptKind(StrEnum):
+    GUIDE_MEDICATION = "guide_medication"
+    GUIDE_LIFESTYLE = "guide_lifestyle"
+    CHAT = "chat"
+    PARSE_CONDITION = "parse_condition"
+    PARSE_DOCUMENT = "parse_document"
+    SCOPE_CLASSIFY = "scope_classify"
+    VERIFY = "verify"
+
+
+class GuideType(StrEnum):
+    MEDICATION = "medication"
+    LIFESTYLE = "lifestyle"
+
+
+class GuideStatus(StrEnum):
+    GENERATING = "generating"  # '가이드 만드는 중'
+    VERIFYING = "verifying"  # '내용 확인 중'
+    COMPLETED = "completed"  # 검증 통과
+    COMPLETED_WITH_REPLACEMENTS = "completed_with_replacements"  # 일부 항목을 기본 정보로 대체 (VERI-005)
+    FAILED = "failed"  # 생성·검증 실패 또는 30초 초과 → 기본 약 정보 + [다시 시도]
+
+
+class ChatRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class ChatMessageType(StrEnum):
+    NORMAL = "normal"
+    EMERGENCY_PHYSICAL = "emergency_physical"  # 119 안내 후 LLM 답변 이어짐
+    EMERGENCY_SELF_HARM = "emergency_self_harm"  # 109 안내만, 일반 답변 없음
+    OUT_OF_SCOPE = "out_of_scope"  # 범위 밖 안내
+
+
+class ChatMessageStatus(StrEnum):
+    STREAMING = "streaming"
+    COMPLETED = "completed"
+    FAILED = "failed"  # '다시 보내기' 표시, 사용량 미차감
+
+
+class ChatVerifyStatus(StrEnum):
+    # [2차] VERI-007
+    NOT_NEEDED = "not_needed"
+    PASSED = "passed"
+    CORRECTED = "corrected"  # 답변 아래 정정 안내
+
+
+class LlmPurpose(StrEnum):
+    GUIDE = "guide"
+    CHAT = "chat"
+    PARSE = "parse"
+    VERIFY = "verify"
+    CLASSIFY = "classify"
