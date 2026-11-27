@@ -1,12 +1,11 @@
 """빠진 약 찾기 (이슈 #45). 실제 CLOVA 응답(fixtures/clova/real, 가상 데이터)으로 확인합니다."""
 
-import asyncio
-
 import pytest
 
 import app.services.scan_service as sp
 from app.dtos.scan import DrugMatch, MatchStatus
 from app.services.missing_drugs import find_possibly_missing_drugs, find_unlinked_drug_lines
+from app.tests.scan.fakes import run
 from app.tests.scan.test_clova_real import EXPECTED_DRUGS, lines_of, nospace
 
 W = sp.OcrWord
@@ -116,5 +115,5 @@ def test_catalog_filters_unknown_names():
     lines = [line("가스모틴정", "5mg", "1정", "3회", "30일"), line("다올비타정", "1정", "1회")]
     lines = [sp.make_line(1, i, ln.words) for i, ln in enumerate(lines)]
     assert len(find_unlinked_drug_lines(lines, set())) == 2  # 1단계에서는 둘 다 후보(약 DB에 없는 이름 포함)
-    found = asyncio.run(find_possibly_missing_drugs(lines, set(), OnlyKnownCatalog()))
+    found = run(find_possibly_missing_drugs(lines, set(), OnlyKnownCatalog()))
     assert [c.drug_name for c in found] == ["가스모틴정 5mg"]

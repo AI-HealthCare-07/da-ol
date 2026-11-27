@@ -28,7 +28,13 @@ W = sp.OcrWord
 
 
 def run(coro):
-    return asyncio.run(coro)
+    """코루틴을 새 루프에서 돌립니다. asyncio.run()은 끝나면서 '현재 이벤트 루프'를 비워서,
+    뒤에 도는 DB 테스트(TestCase)가 'There is no current event loop'로 실패해요. 그래서 현재 루프는 건드리지 않아요."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 # ---------------------------------------------------------------------------

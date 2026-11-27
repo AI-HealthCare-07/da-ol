@@ -251,9 +251,10 @@ class ScanRepo(Protocol):
         self, scan_id: int, *, conn: Any = None
     ) -> None: ...  # status=expired, parsed_result·masked_lines=NULL
     async def page_images(self, scan_id: int) -> list[tuple[int, bytes]]: ...
-    async def save_masked_lines(self, scan_id: int, lines: list[dict]) -> None: ...  # ⚠ 저장 칸 미정
+    async def save_masked_lines(self, scan_id: int, lines: list[dict]) -> None: ...  # medical_documents.masked_lines
     async def load_masked_lines(self, scan_id: int) -> list[dict]: ...
     async def mark_pages_deleted(self, scan_id: int, now: datetime) -> None: ...
+    async def cleanup_candidates(self, now: datetime) -> list[ScanDoc]: ...  # 정리 작업이 돌 문서
 
 
 @dataclass
@@ -263,7 +264,7 @@ class ScanDoc:
     status: DocumentStatus
     step: ScanStep | None
     doc_type: DocType
-    processing_started_at: datetime  # ⚠ 90초 기준. 업로드 시각, 문서 종류 다시 고르면 그 시각
+    processing_started_at: datetime  # 90초 기준. 업로드 시각, 문서 종류 다시 고르면 그 시각
     image_delete_due_at: datetime
     page_count: int
     fail_reason: FailReason | None = None
