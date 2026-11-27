@@ -176,3 +176,23 @@ def test_normal_pdf_page_keeps_render_scale():
     (page,) = prepare_pages([f(huge_page_pdf(842))])
     with Image.open(io.BytesIO(page.image)) as img:
         assert max(img.size) == round(842 * su.PDF_RENDER_SCALE)
+
+
+def empty_pdf() -> bytes:
+    empty = pdfium.PdfDocument.new()
+    buf = io.BytesIO()
+    empty.save(buf)
+    empty.close()
+    return buf.getvalue()
+
+
+def test_empty_pdf_reports_its_file_index():
+    e = error_of([f(image_bytes()), f(empty_pdf())])  # 사진 + 쪽이 없는 PDF
+    assert e.code == ScanErrorCode.INVALID_FILE and e.file_index == 1
+
+
+def test_broken_pdf_after_encrypted_pdf_is_not_called_encrypted():
+    # PDFium이 이전 호출의 '비밀번호 오류' 코드를 그대로 돌려주는 경우가 있어, 순서와 상관없이 맞게 나와야 함
+    assert error_of([f(ENCRYPTED_PDF)]).code == ScanErrorCode.ENCRYPTED_PDF
+    assert error_of([f(empty_pdf())]).code == ScanErrorCode.INVALID_FILE
+    assert error_of([f(b"%PDF-1.4 broken")]).code == ScanErrorCode.INVALID_FILE

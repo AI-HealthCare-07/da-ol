@@ -119,10 +119,17 @@ def _check_image(data: bytes, index: int) -> None:
 
 def _open_pdf(data: bytes, index: int) -> pdfium.PdfDocument:
     try:
-        return pdfium.PdfDocument(data)
+        pdf = pdfium.PdfDocument(data)
     except pdfium.PdfiumError as e:
-        code = ScanErrorCode.ENCRYPTED_PDF if getattr(e, "err_code", None) == _PDFIUM_PASSWORD_ERROR else None
-        raise UploadError(code or ScanErrorCode.INVALID_FILE, index) from e
+        # PDFium은 오류 코드를 따로 남기지 않은 실패에서 이전 호출의 코드를 그대로 돌려줄 때가 있음.
+        # 그래서 '비밀번호 오류' 코드이면서 파일에 암호 사전(/Encrypt)이 있을 때만 암호 PDF로 봄
+        is_encrypted = getattr(e, "err_code", None) == _PDFIUM_PASSWORD_ERROR and b"/Encrypt" in data
+        code = ScanErrorCode.ENCRYPTED_PDF if is_encrypted else ScanErrorCode.INVALID_FILE
+        raise UploadError(code, index) from e
+    if len(pdf) == 0:  # 쪽이 없는 PDF는 그 파일 번호로 알려 줌(다른 파일과 섞여도 몇 번째인지 맞게)
+        pdf.close()
+        raise UploadError(ScanErrorCode.INVALID_FILE, index)
+    return pdf
 
 
 def _render_scale(page: pdfium.PdfPage) -> float:
@@ -170,8 +177,6 @@ def _check_page_count(opened: list[pdfium.PdfDocument | None]) -> None:
     total = sum(len(pdf) if pdf is not None else 1 for pdf in opened)
     if total > MAX_PAGES:
         raise UploadError(ScanErrorCode.TOO_MANY_PAGES)
-    if total == 0:  # 페이지가 0인 PDF뿐
-        raise UploadError(ScanErrorCode.INVALID_FILE, 0)
 
 
 def prepare_pages(files: list[UploadedFile]) -> list[PageImage]:
