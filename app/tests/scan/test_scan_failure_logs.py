@@ -38,6 +38,8 @@ def test_unexpected_error_in_job_logs_type_and_scan_id(caplog):
     assert deps.repo.doc.status == DocumentStatus.OCR_FAILED
     assert deps.repo.doc.fail_reason == FailReason.OCR_ERROR
     assert "scan job failed: scan_id=42 error=RuntimeError" in caplog.text
+    (rec,) = [r for r in caplog.records if "scan job failed" in r.getMessage()]
+    assert rec.levelno == logging.ERROR  # 예상 못 한 에러는 error, 나머지(사전·사진 삭제)는 warning
     assert SECRET not in caplog.text
     assert all(r.exc_info is None for r in caplog.records)  # 스택(logger.exception) 안 남김
 
@@ -51,6 +53,7 @@ def test_instruction_parse_failure_logs_type(caplog):
         )
     assert d.dosage.needs_confirm is True  # 사전 대신 기본값(확인 필요)
     assert "instruction parse failed, fallback used: error=ValueError" in caplog.text
+    assert all(r.levelno == logging.WARNING for r in caplog.records)
     assert SECRET not in caplog.text
 
 
