@@ -514,7 +514,9 @@ async def run_scan_job(deps: Deps, scan_id: int, *, from_saved_lines: bool = Fal
     except Exception as e:
         # 예상 못 한 에러. 메시지·스택에 OCR 글자가 섞일 수 있어 문서 번호와 에러 종류 이름만 남김
         # (logger.exception·exc_info 금지)
-        logger.warning("scan job failed: scan_id=%s error=%s", scan_id, type(e).__name__)
+        logger.error(
+            "scan job failed: scan_id=%s error=%s", scan_id, type(e).__name__
+        )  # 코드 버그일 가능성이 높아 error
         await _fail_unless_expired(deps, scan_id, FailReason.OCR_ERROR)
 
 
