@@ -208,8 +208,11 @@ class ScanRepository:
     async def cleanup_candidates(self, now: datetime) -> list[ScanDoc]:
         """정리 작업 후보: 3시간 지난 미확정 문서, 또는 확정·만료됐는데 사진이 남은 문서."""
         due = Q(status__in=[s.value for s in OPEN_STATUSES], image_delete_due_at__lte=now)
+        # 페이지 테이블을 붙일 때 페이지가 없는 문서는 빈 칸으로 붙어 deleted_at IS NULL에 맞으므로,
+        # 실제 페이지 행이 있을 때만(pages__id__isnull=False) 고름 (#96 리뷰: 페이지 없는 시드 확정 문서)
         closed_with_pages = Q(
             status__in=[DocumentStatus.CONFIRMED.value, DocumentStatus.EXPIRED.value],
+            pages__id__isnull=False,
             pages__deleted_at__isnull=True,
         )
         docs = await MedicalDocument.filter(due | closed_with_pages).distinct()

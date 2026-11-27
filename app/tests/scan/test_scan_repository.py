@@ -175,6 +175,20 @@ class ScanRepositoryTest(TestCase):
         assert due.scan_id in ids and confirmed.scan_id in ids
         assert fresh.scan_id not in ids and cleaned.scan_id not in ids
 
+    async def test_cleanup_skips_closed_document_without_pages(self):
+        # 시드처럼 페이지 행 없이 만들어진 확정·만료 문서는 지울 사진이 없으므로 후보가 아님 (#96 리뷰)
+        no_pages = []
+        for status in (DocumentStatus.CONFIRMED, DocumentStatus.EXPIRED):
+            doc = await MedicalDocument.create(
+                user=self.user,
+                doc_type=DocType.PRESCRIPTION.value,
+                status=status.value,
+                image_delete_due_at=self.now - timedelta(hours=4),
+            )
+            no_pages.append(doc.id)
+        ids = {d.scan_id for d in await self.repo.cleanup_candidates(self.now)}
+        assert not ids & set(no_pages)
+
     async def test_run_cleanup_with_real_repo(self):
         due = await self.create(now=self.now - timedelta(hours=4))
         deps = self.deps()
