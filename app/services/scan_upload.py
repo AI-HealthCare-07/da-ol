@@ -15,6 +15,7 @@ DB·외부 호출이 없는 순수 함수입니다. 라우터는 UploadError를 
 from __future__ import annotations
 
 import io
+import warnings
 from dataclasses import dataclass
 
 import pypdfium2 as pdfium
@@ -25,6 +26,11 @@ from app.services.scan_service import MAX_FILE_BYTES, MAX_PAGES, MAX_TOTAL_BYTES
 
 # PDF 그리기 배율. 1 = 72dpi. 2 ≈ 144dpi로 처방전 글자를 읽기에 충분하고 메모리도 적게 씀(12/9 메모리 측정 때 조정)
 PDF_RENDER_SCALE = 2.0
+# 그린 PDF 페이지의 긴 변 상한(픽셀). 페이지 크기가 비정상적으로 큰 PDF가 메모리를 다 쓰지 않게 배율을 줄임.
+# A4는 2배율이면 1190×1684라 보통 처방전에는 영향 없음
+MAX_RENDER_SIDE = 4000
+# 사진 픽셀 수 상한. 작은 파일이 열면 엄청 커지는 사진(압축 폭탄)을 막음. 휴대폰 사진(약 1200만~5000만)보다 넉넉하게
+MAX_IMAGE_PIXELS = 40_000_000
 _PDFIUM_PASSWORD_ERROR = 4  # FPDF_ERR_PASSWORD
 
 MIME_BY_KIND = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf"}
@@ -97,8 +103,16 @@ def _check_sizes(files: list[UploadedFile]) -> None:
 
 def _check_image(data: bytes, index: int) -> None:
     try:
-        with Image.open(io.BytesIO(data)) as img:
-            img.verify()  # 잘린 파일·깨진 헤더를 찾음(픽셀은 디코딩하지 않음)
+        with warnings.catch_warnings():
+            # Pillow는 약 8900만~1억 7900만 픽셀은 경고만 하고 통과시킴. 아래에서 더 낮은 상한으로 직접 막으므로 경고는 끔
+            warnings.simplefilter("ignore", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as img:  # 크기는 머리 부분만 읽어서 알 수 있음
+                width, height = img.size
+                if width * height > MAX_IMAGE_PIXELS:
+                    raise UploadError(ScanErrorCode.INVALID_FILE, index)
+                img.verify()  # 잘린 파일·깨진 헤더를 찾음(픽셀은 디코딩하지 않음)
+    except Image.DecompressionBombError as e:  # 약 1억 7900만 픽셀 초과: Pillow가 열기부터 거절
+        raise UploadError(ScanErrorCode.INVALID_FILE, index) from e
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as e:
         raise UploadError(ScanErrorCode.INVALID_FILE, index) from e
 
@@ -111,12 +125,21 @@ def _open_pdf(data: bytes, index: int) -> pdfium.PdfDocument:
         raise UploadError(code or ScanErrorCode.INVALID_FILE, index) from e
 
 
+def _render_scale(page: pdfium.PdfPage) -> float:
+    """긴 변이 MAX_RENDER_SIDE를 넘지 않는 배율. 페이지 크기는 포인트(1/72인치) 단위."""
+    width, height = page.get_size()
+    longest = max(width, height)
+    if longest <= 0:
+        return PDF_RENDER_SCALE
+    return min(PDF_RENDER_SCALE, MAX_RENDER_SIDE / longest)
+
+
 def _render_pdf(pdf: pdfium.PdfDocument, index: int) -> list[bytes]:
     pages = []
     try:
         for page in pdf:
             buf = io.BytesIO()
-            page.render(scale=PDF_RENDER_SCALE).to_pil().save(buf, "PNG")
+            page.render(scale=_render_scale(page)).to_pil().save(buf, "PNG")
             pages.append(buf.getvalue())
     except (pdfium.PdfiumError, OSError, ValueError) as e:
         raise UploadError(ScanErrorCode.INVALID_FILE, index) from e

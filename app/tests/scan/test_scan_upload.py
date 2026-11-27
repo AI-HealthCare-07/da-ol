@@ -2,8 +2,10 @@
 암호 PDF만 fixtures/upload/encrypted.pdf(암호 'pw', 2쪽)를 씁니다."""
 
 import io
+import zlib
 from pathlib import Path
 
+import pypdfium2 as pdfium
 import pytest
 from PIL import Image
 
@@ -119,3 +121,58 @@ def test_too_many_pages_counted_before_rendering(monkeypatch):
 def test_error_message_is_screen_text():
     e = error_of([f(ENCRYPTED_PDF)])
     assert e.message == "암호가 걸린 PDF는 읽을 수 없어요. 암호를 푼 파일이나 사진으로 올려 주세요"
+
+
+# ---------------------------------------------------------------------------
+# 위험한 파일 (#86 리뷰): 작은 파일이 열면 엄청 커지는 경우
+# ---------------------------------------------------------------------------
+def png_with_header_size(width: int, height: int) -> bytes:
+    """1×1 PNG의 머리 부분(IHDR)만 큰 크기로 바꾼 파일. 픽셀은 만들지 않아 테스트가 메모리를 쓰지 않음."""
+    data = bytearray(image_bytes(size=(1, 1)))
+    ihdr = 8 + 8  # PNG 서명 8바이트 + 길이·종류 8바이트 뒤가 IHDR 내용
+    data[ihdr : ihdr + 8] = width.to_bytes(4, "big") + height.to_bytes(4, "big")
+    data[ihdr + 13 : ihdr + 17] = zlib.crc32(bytes(data[ihdr - 4 : ihdr + 13])).to_bytes(4, "big")
+    return bytes(data)
+
+
+@pytest.mark.parametrize(
+    "width, height",
+    [
+        (20_000, 20_000),  # 4억 픽셀: Pillow가 열기부터 거절(DecompressionBombError)
+        (10_000, 10_000),  # 1억 픽셀: Pillow는 경고만 하고 통과시키는 구간
+        (7_000, 7_000),  # 4900만 픽셀: 우리 상한(MAX_IMAGE_PIXELS) 초과
+    ],
+)
+def test_decompression_bomb_image_is_invalid(width, height):
+    e = error_of([f(png_with_header_size(width, height))])
+    assert e.code == ScanErrorCode.INVALID_FILE and e.file_index == 0
+
+
+def test_large_but_normal_photo_passes():
+    # 휴대폰 사진 정도(4000×3000 = 1200만 픽셀)는 통과
+    (page,) = prepare_pages([f(png_with_header_size(4000, 3000))])
+    assert page.page_no == 1
+
+
+def huge_page_pdf(side_pt: float) -> bytes:
+    pdf = pdfium.PdfDocument.new()
+    pdf.new_page(side_pt, side_pt)
+    buf = io.BytesIO()
+    pdf.save(buf)
+    pdf.close()
+    return buf.getvalue()
+
+
+def test_huge_pdf_page_rendered_within_max_side(monkeypatch):
+    monkeypatch.setattr(su, "MAX_RENDER_SIDE", 500)  # 테스트를 가볍게. 실제 값은 4000
+    data = huge_page_pdf(200 * 72)  # 200인치 × 200인치, 파일은 수백 바이트
+    (page,) = prepare_pages([f(data)])
+    with Image.open(io.BytesIO(page.image)) as img:
+        assert max(img.size) <= 500
+
+
+def test_normal_pdf_page_keeps_render_scale():
+    # A4(595×842pt)는 2배율이면 긴 변 1684로 상한(4000)보다 작아 배율을 줄이지 않음
+    (page,) = prepare_pages([f(huge_page_pdf(842))])
+    with Image.open(io.BytesIO(page.image)) as img:
+        assert max(img.size) == round(842 * su.PDF_RENDER_SCALE)
