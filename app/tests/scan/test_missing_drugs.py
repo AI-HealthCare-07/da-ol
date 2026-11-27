@@ -7,7 +7,7 @@ import pytest
 import app.services.scan_service as sp
 from app.dtos.scan import DrugMatch, MatchStatus
 from app.services.missing_drugs import find_possibly_missing_drugs, find_unlinked_drug_lines
-from app.tests.test_clova_real import EXPECTED_DRUGS, lines_of, nospace
+from app.tests.scan.test_clova_real import EXPECTED_DRUGS, lines_of, nospace
 
 W = sp.OcrWord
 
