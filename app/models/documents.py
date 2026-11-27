@@ -27,7 +27,13 @@ class MedicalDocument(models.Model):
     )
     created_at = fields.DatetimeField(auto_now_add=True)
     confirmed_at = fields.DatetimeField(null=True)
-
+    step = fields.CharField(
+        max_length=20, null=True, description="uploaded일 때 로딩 단계: reading / structuring (채민 요청)"
+    )
+    masked_lines = fields.TextField(
+        null=True,
+        description="가린 OCR 줄 JSON(page_no, line_idx, words[[글자, 신뢰도]]). 마스킹 후 암호화. 확정·만료 시 NULL (채민 요청)",
+    )
     pages: fields.ReverseRelation["DocumentPage"]
 
     class Meta:
