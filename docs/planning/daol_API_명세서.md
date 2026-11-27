@@ -1433,7 +1433,7 @@ ERD 쪽에 제안할 것(ERD 담당자 확인):
 | ✅ 5장 `get_confirmed_prescription()` 반환 형식의 `prescription_drug_id`를 6·7장과 같은 `prescription_item_id`로 맞췄습니다(11/23 5장 작성) | 설아 |
 | ✅ 끼니 기본값은 4장 순수 함수 `fill_default_meals(doses, times_per_day)`(민정, DB 안 씀)로 채웁니다. `create_prescription()`이 저장 전에 부르고, `GET /scans/{scan_id}`도 같은 함수로 미리 채워 보여 줍니다(민정님 답변) | 민정 · 재경 |
 | ✅ 홈의 끼니 고르기도 `PATCH /dose-conditions/{condition_id}`를 씁니다. 끼니만 보내도 되도록 부분 수정으로 바꿨습니다. 홈의 `schedule_check_items`에 `conditions: [{condition_id, dose_no, reason}]`을 넣기로 했습니다(4장 설아님 리뷰). `reason`은 확정 응답·`ConditionToConfirm`과 같은 값입니다 | 설아 · 민정 |
-| ✅ ERD v2(`daol_erd_v2.dbml`)에 맞췄습니다: `parsed_by`는 `rule` / `user`(LLM 복용법 해석은 ERD대로 2차), 문서 종류 `pill_envelope`, 확정 Body `drug_name`은 처방전에 적힌 이름(`drug_name_raw`), 원문 줄 `raw_text`(`source_text`), `is_oral`('먹는 약 아님'), `times_per_day` 1~4·`total_days` 1~365, 프롬프트 버전 `parse_document_v1`(`prompt_kind`) | 민정 · 유정 |
+| ✅ ERD v2(`daol_erd.dbml`)에 맞췄습니다: `parsed_by`는 `rule` / `user`(LLM 복용법 해석은 ERD대로 2차), 문서 종류 `pill_envelope`, 확정 Body `drug_name`은 처방전에 적힌 이름(`drug_name_raw`), 원문 줄 `raw_text`(`source_text`), `is_oral`('먹는 약 아님'), `times_per_day` 1~4·`total_days` 1~365, 프롬프트 버전 `parse_document_v1`(`prompt_kind`) | 민정 · 유정 |
 | 1차는 사전에 없는 복용법 문장을 LLM으로 해석하지 않고 바로 '복용 조건 확인 필요'로 둡니다(ERD `parsed_by.llm` [2차]). AI 기획 문서의 1차 복용법 해석(LLM) 범위도 2차로 옮겨야 합니다 → 유정님과 AI 문서 반영 | 유정 · 민정 |
 | ✅ ERD 칸 이름에 맞춰 `document_type` → `doc_type`, `expires_at` → `image_delete_due_at`으로 바꿨습니다(1번 공통 규칙, 민정님 답변). `prescribed_date`는 `prescriptions.prescribed_date`로 저장되므로 그대로 둡니다 | 민정 |
 | ✅ 같은 파일 다시 올리기 감지("이미 올린 사진이에요", `file_hash`)와 여러 장의 병원명·처방일이 다를 때 "다른 처방전이 섞여 있는 것 같아요" 안내는 2차입니다(11/23 설아, REQ-OCR-001). 1차는 `file_hash` 값만 저장합니다. 2차에 넣을 때는 `POST /scans`에서 막지 않고 응답에 `duplicate_pages: [1]`로 알려 주는 안을 씁니다 | 설아 · 민정 |
@@ -2448,7 +2448,7 @@ API는 아니지만 다른 섹션이 부르는 함수입니다. 입력·출력�
 | 2026-11-23 | 민정 | 리뷰 반영(설아·채민·유정): `GET /intakes` `schedule_check_items`에 약 단위 `reason`·`prescription_id` 추가, `timing_unknown`은 `conditions` 없이 안내 카드용으로 내려줌(4-9 23), 4-9 24(`PATCH /prescription-items`) 추가, 4-8 E2(2차)·E9(`rule / user`)·E10(`times_per_day` NULL 허용)·E11(`check_result` jsonb, 저장 형식) 확정, `create_prescription()` `parsed_by` 값·공통 검사(`is_oral`, 입력 범위) ERD v2에 맞춤 |
 | 2026-11-20 | 유정 | 7장 가이드·챗봇 작성: API 6개 + 내부 함수 1개. 1차 축소안 반영(자동 재시도·다시 만들기·피드백·이전 대화는 2차), SSE 이벤트는 백엔드 합의 이름(`delta`·`text`·`physical/self_harm`)으로 작성 |
 | 2026-11-21 | 채민 | 6장 4장 리뷰(PR #15) 반영: 4-9 답변 항목 ✅ 표시, 확정 처리 순서를 `create_prescription()`·커밋 위치에 맞춤, `GET /drugs`·매칭 후보 칸 이름을 ERD(`item_name`·`company`)로 변경, `recalculate_schedule()` 연결, `parsed_by` ERD 값 확인 요청 추가 |
-| 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd_v2.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
+| 2026-11-22 | 채민 | 6장 ERD v2(`daol_erd.dbml`) 대조 반영: 1차 LLM 복용법 해석 제외(`parsed_by` = `rule` / `user`), `pill_envelope`, 확정 Body `drug_name`(처방전 이름)·`raw_text`, `is_oral`, 입력 범위, `parse_document_v1`, 챗봇 기록 칸 제안 |
 | 2026-11-25 | 채민 | 6장 PR #25 리뷰 반영: 확정 응답 예시 `reason`을 `timing_unknown`으로 수정(민정님), 6-2·`PATCH /scans` 비고에 '고친 용량을 읽을 수 없으면 `needs_check: true`' 예외와 `dose_per_time.edited` 추가(설아님) |
 | 2026-11-26 | 유정 | 출처 칸 맞춤(ERD #41, 약 정보는 drugs 직접 조회): 7-1·7-6 예시의 약 출처 `rag_document_id` → `drug_id`, 7-1 비고에 출처 규칙 추가, 1-3 SSE 표 `sources` 예시와 6장 근거 대조 문장도 같게 맞춤(설아님 리뷰) |
 | 2026-11-26 | 채민 | 6-2 확인 표시 규칙 추가: 정·캡슐·포 1회 용량 0.25 미만이면 `needs_check: true`(OCR·고친 용량), `is_oral: false` 줄은 `dosage.needs_confirm: false` |
