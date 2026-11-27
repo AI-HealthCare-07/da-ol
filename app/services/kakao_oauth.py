@@ -11,7 +11,7 @@ import httpx
 from starlette import status
 
 from app.core import config
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, ErrorCode
 
 KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token"
 KAKAO_USER_URL = "https://kapi.kakao.com/v2/user/me"
@@ -27,11 +27,11 @@ class KakaoUser:
 
 
 def kakao_auth_failed() -> AppError:
-    return AppError(status.HTTP_401_UNAUTHORIZED, "KAKAO_AUTH_FAILED", KAKAO_LOGIN_FAILED_MESSAGE)
+    return AppError(status.HTTP_401_UNAUTHORIZED, ErrorCode.KAKAO_AUTH_FAILED, KAKAO_LOGIN_FAILED_MESSAGE)
 
 
 def kakao_unavailable() -> AppError:
-    return AppError(status.HTTP_502_BAD_GATEWAY, "EXTERNAL_API_ERROR", KAKAO_LOGIN_FAILED_MESSAGE)
+    return AppError(status.HTTP_502_BAD_GATEWAY, ErrorCode.EXTERNAL_API_ERROR, KAKAO_LOGIN_FAILED_MESSAGE)
 
 
 def parse_kakao_user(data: dict[str, Any]) -> KakaoUser:

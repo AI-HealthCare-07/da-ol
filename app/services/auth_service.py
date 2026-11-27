@@ -17,7 +17,7 @@ from tortoise.exceptions import IntegrityError
 from tortoise.transactions import in_transaction
 
 from app.core import config
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, ErrorCode
 from app.models.enums import UserStatus
 from app.models.users import RefreshToken, User
 from app.services.jwt import JwtService
@@ -36,7 +36,7 @@ NICKNAME_MAX_TRIES = 10
 
 
 def refresh_token_expired() -> AppError:
-    return AppError(status.HTTP_401_UNAUTHORIZED, "REFRESH_TOKEN_EXPIRED", "로그인이 만료되었습니다")
+    return AppError(status.HTTP_401_UNAUTHORIZED, ErrorCode.REFRESH_TOKEN_EXPIRED, "로그인이 만료되었습니다")
 
 
 def hash_refresh_token(raw: str) -> str:
@@ -86,10 +86,12 @@ class AuthService:
         if user is not None and user.status == UserStatus.WITHDRAWN:
             self._check_rejoin_allowed(user)
             # 30일이 지났는데 아직 영구 삭제 전인 행: 명세상 30일 뒤에는 새 회원으로 가입하므로 지우고 새로 만듭니다.
-            await user.delete()
-            user = None
-
-        if user is None:
+            # 삭제와 생성을 한 트랜잭션으로 묶어, 생성이 실패하면 옛 행도 그대로 남게 합니다.
+            async with in_transaction():
+                await user.delete()
+                user = await self._create_user(kakao_user.kakao_id, kakao_user.nickname, kakao_user.email)
+            is_new_user = True
+        elif user is None:
             user = await self._create_user(kakao_user.kakao_id, kakao_user.nickname, kakao_user.email)
             is_new_user = True
 
@@ -105,7 +107,7 @@ class AuthService:
             available_date = available_at.date()
             raise AppError(
                 status.HTTP_403_FORBIDDEN,
-                "REJOIN_RESTRICTED",
+                ErrorCode.REJOIN_RESTRICTED,
                 f"탈퇴 후 30일 동안은 다시 가입할 수 없어요. {available_date.month}월 {available_date.day}일부터 가입할 수 있어요",
                 extra={"rejoin_available_date": available_date.isoformat()},
             )
@@ -128,7 +130,7 @@ class AuthService:
                         return existing
             candidate = nickname_with_suffix(base, random_suffix())
 
-        raise AppError(status.HTTP_500_INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "잠시 후 다시 시도해 주세요")
+        raise AppError(status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR, "잠시 후 다시 시도해 주세요")
 
     # ---- 토큰 ----
     async def issue_tokens(self, user: User) -> IssuedTokens:
