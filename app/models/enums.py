@@ -1,4 +1,4 @@
-"""ERD v2(docs/planning/daol_erd_v2.dbml)의 Enum 정의.
+"""ERD v2(docs/planning/daol_erd.dbml)의 Enum 정의.
 
 DB에는 Postgres ENUM 타입이 아니라 varchar로 저장하고(CharEnumField), 허용 값은 앱에서 검사합니다.
 """
