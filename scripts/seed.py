@@ -100,13 +100,16 @@ async def _resolve_drug(item: dict[str, Any]) -> Drug | None:
     drug_name: str = item["drug_name_raw"]
     norm_name = normalize_drug_name(drug_name) or drug_name
 
+    # 1) 실제 적재된 공공데이터(SEED_ 제외) 우선 매칭
     real_drug = await Drug.filter(item_name_norm=norm_name).exclude(item_seq__startswith="SEED_").first()
     if real_drug is not None:
         return real_drug
 
+    # 2) 먹는 약은 공용 drugs 테이블을 오염시키지 않도록 None으로 둠
     if item.get("is_oral", True):
         return None
 
+    # 3) Case 13 비경구약 거절 테스트에 필요한 최소 데이터만 생성
     item_seq: str | None = item.get("item_seq")
     if not item_seq:
         return None
@@ -239,12 +242,18 @@ async def _reset_user_and_consents(user: User) -> None:
         )
 
 
-def _determine_intake_status(day_offset: int, case_no: int, slot_no: int) -> IntakeStatus:
+def _determine_intake_status(
+    day_offset: int,
+    case_no: int,
+    slot_no: int,
+    calc_time: time,
+) -> IntakeStatus:
     """날짜 오프셋에 따라 다 먹은 날 / 일부만 먹은 날 / 오늘 상태를 결정한다."""
     if day_offset in FULL_TAKEN_OFFSETS:
         return IntakeStatus.TAKEN
     if day_offset == 0:
-        is_today_morning = case_no == 1 and slot_no == 1
+        # 오늘 TAKEN은 Case 01의 아침 약(아모잘탄정 08:30) 1건만 생성
+        is_today_morning = case_no == 1 and slot_no == 1 and calc_time == time(8, 30)
         return IntakeStatus.TAKEN if is_today_morning else IntakeStatus.PENDING
     return IntakeStatus.TAKEN if slot_no == 1 else IntakeStatus.MISSED
 
@@ -257,13 +266,17 @@ async def _seed_7day_intakes(
     case_no: int,
     slot_no: int,
     dose_text: str,
+    end_date: date,
     today_kst: date,
 ) -> int:
-    """KST 기준 최근 7일(지난 6일 + 오늘) 복약 기록을 생성한다."""
+    """KST 기준 최근 7일(지난 6일 + 오늘) 중 복용 기간(end_date) 이내의 복약 기록만 생성한다."""
     created = 0
     for day_offset in range(6, -1, -1):
         target_date = today_kst - timedelta(days=day_offset)
-        status = _determine_intake_status(day_offset, case_no, slot_no)
+        if target_date > end_date:
+            continue
+
+        status = _determine_intake_status(day_offset, case_no, slot_no, calc_time)
         taken_at = (
             datetime.combine(target_date, calc_time, tzinfo=config.TIMEZONE) if status == IntakeStatus.TAKEN else None
         )
@@ -288,9 +301,10 @@ async def _seed_condition_and_schedules(
     item: dict[str, Any],
     cond: dict[str, Any],
     case_no: int,
+    end_date: date,
     today_kst: date,
 ) -> tuple[int, int]:
-    """복용 조건 1건과 평일·주말 시간표, 7일치 복약 로그를 생성한다."""
+    """복용 조건 1건과 평일·주말 시간표, 복용 기간 내 복약 로그를 생성한다."""
     cond_type_raw = cond.get("condition_type")
     meal_raw = cond.get("meal")
     time_basis = TimeBasis(cond["time_basis"])
@@ -313,6 +327,7 @@ async def _seed_condition_and_schedules(
     calc_time = _parse_time(cond.get("calculated_time"))
     sched_status = ScheduleStatus(cond["status"])
 
+    # 주말에 실행해도 홈이 비지 않도록 평일·주말 일정 모두 생성
     for day_type in (DayType.WEEKDAY, DayType.WEEKEND):
         await DoseSchedule.create(
             dose_condition=condition,
@@ -331,6 +346,7 @@ async def _seed_condition_and_schedules(
             case_no=case_no,
             slot_no=cond["slot_no"],
             dose_text=item["dose_text"],
+            end_date=end_date,
             today_kst=today_kst,
         )
     return 2, intakes_created
@@ -366,6 +382,8 @@ async def _seed_confirmed_case(
         drug = await _resolve_drug(item)
         dose_amount_raw = item.get("dose_amount")
         dose_amount = Decimal(str(dose_amount_raw)) if dose_amount_raw is not None else None
+        total_days: int = item["total_days"]
+        end_date = prescribed_date + timedelta(days=total_days - 1)
 
         p_item = await PrescriptionItem.create(
             prescription=prescription,
@@ -378,7 +396,7 @@ async def _seed_confirmed_case(
             cycle_type=CycleType.DAILY,
             times_per_day=item.get("times_per_day"),
             start_date=prescribed_date,
-            total_days=item["total_days"],
+            total_days=total_days,
             notify_enabled=True,
         )
         items_cnt += 1
@@ -390,6 +408,7 @@ async def _seed_confirmed_case(
                 item=item,
                 cond=cond,
                 case_no=case["case_no"],
+                end_date=end_date,
                 today_kst=today_kst,
             )
             conds_cnt += 1
@@ -436,6 +455,7 @@ async def run_seed() -> None:
             prescribed_date = (
                 week_start_kst if is_confirmed else (_parse_date(case.get("prescribed_date")) or today_kst)
             )
+            # 비경구 테스트 문서는 만료 정리(run_cleanup)에 걸리지 않도록 365일 부여
             delete_due_at = now_kst + timedelta(hours=3) if is_confirmed else now_kst + timedelta(days=365)
 
             doc = await MedicalDocument.create(
@@ -475,6 +495,7 @@ async def run_seed() -> None:
             totals["schedules"] += s_cnt
             totals["intakes"] += in_cnt
 
+        # 지난 6일 중 100% 복용 완료한 날짜에만 꽃(DailyFlower) 생성 (일부만 먹은 날은 행 없음 = 빈 흙)
         created_flowers = 0
         for day_offset in sorted(FULL_TAKEN_OFFSETS, reverse=True):
             await DailyFlower.create(
