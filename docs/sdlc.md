@@ -17,14 +17,21 @@ SDLC는 소프트웨어를 기획부터 검증까지 체계적으로 구축하�
 
 ## 2. AWS AI-DLC가 기존 SDLC를 바꾸는 방식
 
-**AWS AI-DLC(AI-Driven Development Lifecycle)**는 AI를 단순한 코드 자동완성 도구가 아니라 **개발 생명주기 전반의 핵심 실행 주체(First-Class Contributor)**로 통합하고, 인간 개발자는 **의도 정의·아키텍처 의사결정·검증(Human-in-the-Loop)**에 집중하도록 재설계한 방법론입니다.
+**AWS AI-DLC(AI-Driven Development Lifecycle)**는 AI를 단순한 보조 도구가 아니라 **개발 생명주기 전반의 핵심 실행 주체**로 통합하고, 인간 개발자는 **의도 정의·아키텍처 의사결정·검증(Human-in-the-Loop)**에 집중하도록 재설계한 방법론입니다.
+
+### AI-DLC의 3단계 뼈대
+- **Inception (착수):** 비즈니스 의도(Intent)를 요구사항, 사용자 스토리, 작업 단위(Unit)로 구체화합니다.
+- **Construction (구축):** 아키텍처와 도메인 모델을 설계하고, 실제 코드 생성 및 단위·통합 테스트를 수행합니다.
+- **Operations (운영):** 배포 자동화, 인프라 운영 및 관측(Observability)을 통해 서비스를 안정적으로 유지합니다.
+
+### 기존 SDLC와의 비교
 
 | 구분 | 기존 SDLC | AWS AI-DLC |
 | :--- | :--- | :--- |
 | **역할 분담** | 개발자가 문서 작성·구현·테스트를 모두 직접 수행 | AI가 명세 해석·초안 생성·코드·테스트 작성을 주도하고, 개발자가 검토·승인 |
-| **컨텍스트 관리** | 사람 머릿속과 파편화된 문서에 의존 | `PRD.md`, `ARCHITECTURE.md`, `AGENTS.md` 등 **문서 하네스(Harness)**로 AI에 일관된 규칙과 맥락 제공 |
-| **개발 리듬** | 긴 단위의 순차적 단계(Waterfall) 또는 수 주 단위 스프린트 | **Mob Elaboration**(빠른 설계 구체화)과 **Bolt**(짧은 반복 구현·검증 단위)로 피드백 루프 단축 |
-| **품질 보증** | 구현 후 후반부에 테스트 집중 | 설계 단계부터 테스트 시나리오·검증 기준을 함께 생성해 매 단계마다 자동 검증 |
+| **컨텍스트 및 문서 하네스** | 사람 머릿속과 파편화된 문서에 의존 | • **AWS 방식:** `.kiro/steering/`, `CLAUDE.md`, `AGENTS.md` 등의 **Rules/Steering 파일**로 규칙을 제어하고, 단계별 산출물을 `aidlc-docs/`에 축적<br>• **다올 팀 방식:** 멘토링 제안을 반영해 `PRD.md`, `ARCHITECTURE.md`, `AGENTS.md` 세 문서를 중심으로 규칙과 맥락을 관리 `(적용 예정)` |
+| **개발 리듬** | 긴 단위의 순차적 단계(Waterfall) 또는 수 주 단위 스프린트 | • **Mob Elaboration:** Inception 단계에서 AI가 의도를 요구사항·스토리로 바꾸고, 팀 전체가 모여 질문과 제안을 검증하는 의식<br>• **Mob Construction:** 확정된 단위를 기준으로 설계·구현·테스트를 짧은 주기로 반복 실행 |
+| **품질 보증** | 구현 후 후반부에 테스트 집중 | 설계 단계부터 테스트 시나리오·검증 기준을 함께 생성해 매 단계마다 검증 |
 
 ---
 
@@ -36,11 +43,11 @@ SDLC는 소프트웨어를 기획부터 검증까지 체계적으로 구축하�
 | :--- | :--- | :--- |
 | **1. 분석** | • 요구사항 정의서 (`REQ-*` 기능·비기능 요구사항)<br>• 사용자 시나리오 (시나리오 1: 1차 핵심 흐름, 시나리오 2: 고도화 흐름) | 개발 범위 확정, 예외 케이스 도출, 배포 전 QA 합격 기준 정의 |
 | **2. 설계** | • API 명세서 (`docs/planning/daol_API_명세서.md`)<br>• 데이터베이스 ERD (`daol_erd_v2.dbml`)<br>• 와이어프레임 및 화면 설계서, 프론트 FSD(Pages First) 구조 | 프론트·백엔드·AI 간 인터페이스 통일, 데이터 정합성 확보 |
-| **3. 개발** | • GitHub 이슈·브랜치(`type/이슈번호-설명`)·PR 규칙 및 작업별 커밋 분리<br>• CI 자동 검증 (`ruff` 린트/포맷, `mypy` 타입 체크, `pytest`)<br>• 문서 하네스 적용 (`AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`) | 코드 일관성 유지, 리뷰 효율화, AI 에이전트 작업 품질 통제 |
-| **4. 테스트** | • 기능별 단위·통합 테스트 (`app/tests/<기능>/`, `fakes.py` 격리)<br>• 공용 테스트 처방 시나리오 13건 (`docs/test-prescriptions/`)<br>• KST 기준 7일치 로컬/개발 시드 데이터 (`scripts/seed.py`) | OCR 파싱·약품 매칭률·복약/개화 로직의 재현 가능한 검증 |
+| **3. 개발** | • GitHub 이슈·브랜치(`type/이슈번호-설명`)·PR 규칙 및 작업별 커밋 분리<br>• CI 자동 검증 (`ruff check`, `ruff format --check`, `pytest`)<br>• 문서 하네스 (`AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`) `(예정)` | 코드 일관성 유지, 리뷰 효율화, AI 에이전트 작업 품질 통제 |
+| **4. 테스트** | • 기능별 단위·통합 테스트 (`app/tests/<기능>/`, `fakes.py` 격리)<br>• 공용 테스트 처방 시나리오 13건 (`docs/test-prescriptions/`) 및 시드 스크립트 (`scripts/seed.py`)<br>• KST 기준 7일치 복약·개화 시드 데이터 보완 `(예정)` | OCR 파싱·약품 매칭률·복약/개화 로직의 재현 가능한 검증 |
 
 ---
 
 ## 4. ADLC와의 비교 (한 줄 정리)
 
-- **비교 요약:** AI 에이전트가 계획 수립부터 코드 수정·실행까지 자율적으로 수행하는 **ADLC(Agentic Development Lifecycle)**와 달리, **AWS AI-DLC**는 명세·아키텍처 문서 하네스와 단계별 개발자 승인 게이트(Human-in-the-Loop)를 결합해 엔터프라이즈 수준의 통제력과 예측 가능성을 보장합니다.
+- **비교 요약:** AI 에이전트가 계획 수립부터 코드 수정·실행까지 자율적으로 수행하는 **ADLC(Agentic Development Lifecycle)**와 달리, **AWS AI-DLC**는 명세·규칙 문서 하네스와 단계별 개발자 승인 게이트(Human-in-the-Loop)를 결합해 통제력과 예측 가능성을 높이는 데 초점을 둡니다.
