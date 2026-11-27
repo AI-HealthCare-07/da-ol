@@ -4,7 +4,6 @@ fixture(app/tests/scan/fixtures/clova/)는 공식 문서의 V2 응답 형식에 
 실제 CLOVA 응답으로 확인하는 테스트는 test_clova_real.py에 있습니다(README.md 참고).
 """
 
-import asyncio
 import base64
 import copy
 import json
@@ -17,17 +16,13 @@ import app.services.scan_service as sp
 from app.core.config import Config
 from app.dtos.scan import DocumentStatus, FailReason
 from app.services.clova_ocr import ClovaOcrClient, ClovaOcrError, parse_clova_response
-from app.tests.scan.fakes import make_deps
+from app.tests.scan.fakes import make_deps, run
 
 FIXTURES = Path(__file__).parent / "fixtures" / "clova"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
 JPG = b"\xff\xd8\xff\xe0" + b"\x00" * 16
 URL = "https://example.apigw.ntruss.com/custom/v1/0000/fixture/general"
 SECRET = "test-secret"
-
-
-def run(coro):
-    return asyncio.run(coro)
 
 
 def load(name: str) -> dict:

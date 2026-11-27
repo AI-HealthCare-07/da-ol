@@ -3,7 +3,6 @@
 _retry 로그는 test_scan_retry_log.py에 있어요.
 """
 
-import asyncio
 import logging
 import subprocess
 import sys
@@ -11,7 +10,7 @@ from pathlib import Path
 
 import app.services.scan_service as sp
 from app.dtos.scan import DocumentStatus, DrugMatch, FailReason, MatchStatus
-from app.tests.scan.fakes import NOW, FakeFiles, make_deps
+from app.tests.scan.fakes import NOW, FakeFiles, make_deps, run
 
 SECRET = "가상정비밀약"  # 로그에 나오면 안 되는 글자
 
@@ -33,7 +32,7 @@ def test_unexpected_error_in_job_logs_type_and_scan_id(caplog):
     deps = make_deps()
     deps.catalog = BrokenCatalog()  # 재시도 밖(④ 줄별 처리)에서 예상 못 한 에러
     with caplog.at_level(logging.WARNING, logger=sp.__name__):
-        asyncio.run(sp.run_scan_job(deps, 42))
+        run(sp.run_scan_job(deps, 42))
 
     assert deps.repo.doc.status == DocumentStatus.OCR_FAILED
     assert deps.repo.doc.fail_reason == FailReason.OCR_ERROR
@@ -60,7 +59,7 @@ def test_instruction_parse_failure_logs_type(caplog):
 def test_page_delete_failure_logs_type(caplog):
     deps = make_deps(files=FakeFiles(fail=True))
     with caplog.at_level(logging.WARNING, logger=sp.__name__):
-        asyncio.run(sp._delete_files_quietly(deps, 42))
+        run(sp._delete_files_quietly(deps, 42))
     assert "page file delete failed: scan_id=42 error=OSError" in caplog.text
 
 

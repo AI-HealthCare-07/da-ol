@@ -4,8 +4,6 @@
 - 1회 용량 칸을 비우면 {"text": ""} → 읽을 수 없는 용량과 같게(parsed: false, needs_check: true, edited: true)
 """
 
-import asyncio
-
 import pytest
 
 import app.services.scan_service as sp
@@ -19,6 +17,7 @@ from app.tests.scan.fakes import (
     make_deps,
     new_doc,
     parsed_after_job,
+    run,
 )
 
 
@@ -39,7 +38,7 @@ def test_null_rejects_whole_request():
     # 한 줄이라도 잘못되면 아무것도 저장하지 않음(다른 줄의 total_days도 반영 안 됨)
     parsed = parsed_after_job()
     req = ScanEditRequest.model_validate({"drugs": [{"line_no": 1, "total_days": 99}, {"line_no": 2, "dosage": None}]})
-    lookup = asyncio.run(sp.lookup_edit_drugs(FakeCatalog(), req))
+    lookup = run(sp.lookup_edit_drugs(FakeCatalog(), req))
     with pytest.raises(sp.ScanValidationError):
         sp.apply_edits(parsed, req, drug_lookup=lookup, instructions=FakeInstructions(), today=NOW.date())
     assert parsed["drugs"][0]["total_days"]["value"] != 99
@@ -61,5 +60,5 @@ def test_null_still_allowed_where_it_means_something():
 
 def test_uploaded_without_step_shows_reading():
     deps = make_deps(doc=new_doc(step=None))  # 업로드 직후 작업이 아직 step을 못 채움
-    resp = asyncio.run(sp.get_scan(deps, 42, fill_default_meals=fill_meals_passthrough))
+    resp = run(sp.get_scan(deps, 42, fill_default_meals=fill_meals_passthrough))
     assert resp.step == ScanStep.READING

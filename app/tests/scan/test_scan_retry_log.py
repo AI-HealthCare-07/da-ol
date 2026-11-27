@@ -1,6 +1,5 @@
 """_retry 실패 로그: 원인 종류 이름은 남기고, 에러 메시지(처방 내용이 섞일 수 있음)는 남기지 않음."""
 
-import asyncio
 import logging
 
 import pytest
@@ -8,6 +7,7 @@ from pydantic import ValidationError
 
 import app.services.scan_service as sp
 from app.dtos.scan import FailReason
+from app.tests.scan.fakes import run
 
 
 def test_retry_failure_logs_error_type_without_content(caplog):
@@ -17,7 +17,7 @@ def test_retry_failure_logs_error_type_without_content(caplog):
 
     with caplog.at_level(logging.WARNING, logger=sp.__name__):
         with pytest.raises(sp.ScanFailed) as e:
-            asyncio.run(sp._retry(bad_llm, retries=1, fail=FailReason.STRUCTURE_ERROR))
+            run(sp._retry(bad_llm, retries=1, fail=FailReason.STRUCTURE_ERROR))
 
     assert e.value.reason == FailReason.STRUCTURE_ERROR
     assert e.value.__cause__ is None and e.value.__suppress_context__ is True  # from None
@@ -37,5 +37,5 @@ def test_retry_success_logs_nothing(caplog):
         return "ok"
 
     with caplog.at_level(logging.WARNING, logger=sp.__name__):
-        assert asyncio.run(sp._retry(flaky, retries=2, fail=FailReason.OCR_ERROR)) == "ok"
+        assert run(sp._retry(flaky, retries=2, fail=FailReason.OCR_ERROR)) == "ok"
     assert caplog.records == []
