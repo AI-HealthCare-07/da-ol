@@ -133,6 +133,16 @@ HTTP_ERRORS: dict[int, tuple[ErrorCode, str]] = {
 
 async def http_exception_handler(_request: Request, exc: Exception) -> ORJSONResponse:
     assert isinstance(exc, StarletteHTTPException)
+    if exc.status_code == status.HTTP_400_BAD_REQUEST:
+        # FastAPI가 요청 본문(multipart 등)을 읽다 실패하면 400 → 깨진 JSON(422)과 같은 모양으로
+        return ORJSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "code": ErrorCode.VALIDATION_ERROR.value,
+                "message": VALIDATION_MESSAGE,
+                "fields": {"body": FIELD_MESSAGES["json_invalid"]},
+            },
+        )
     code, message = HTTP_ERRORS.get(exc.status_code, (ErrorCode.INTERNAL_ERROR, INTERNAL_MESSAGE))
     return ORJSONResponse(
         status_code=exc.status_code,

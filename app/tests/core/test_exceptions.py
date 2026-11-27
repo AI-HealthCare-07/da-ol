@@ -1,9 +1,9 @@
-"""공용 에러 응답 (명세 1-1): AppError · 422 VALIDATION_ERROR · 404/405 · 500. DB 없이 작은 앱으로 확인합니다."""
+"""공용 에러 응답 (명세 1-1): AppError · 422 VALIDATION_ERROR · 400 · 404/405 · 500. DB 없이 작은 앱으로 확인합니다."""
 
 from datetime import date
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, Field
 from starlette import status
@@ -40,6 +40,11 @@ async def create_item(body: Body) -> dict:
 @app.get("/boom")
 async def boom() -> dict:
     raise AppError(status.HTTP_404_NOT_FOUND, ErrorCode.NOT_FOUND, "처방을 찾을 수 없어요", extra={"hint": 1})
+
+
+@app.post("/upload")
+async def upload(name: str = Form(...)) -> dict:
+    return {"ok": True}
 
 
 @app.get("/crash")
@@ -93,6 +98,21 @@ async def test_broken_json_body():
     body = response.json()
     assert body["code"] == "VALIDATION_ERROR"
     assert body["fields"] == {"body": "요청 형식이 맞지 않아요"}  # 글자 위치("[11]")가 칸 이름으로 나가지 않게
+
+
+async def test_broken_multipart_body_is_400_validation_error():
+    # Content-Disposition 없는 조각 → FastAPI가 본문을 못 읽어 400. 깨진 JSON과 같은 모양으로
+    broken = b"--x\r\nContent-Type: text/plain\r\n\r\nabc\r\n--x--\r\n"
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/upload", content=broken, headers={"Content-Type": "multipart/form-data; boundary=x"}
+        )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "code": "VALIDATION_ERROR",
+        "message": "입력한 내용을 확인해 주세요",
+        "fields": {"body": "요청 형식이 맞지 않아요"},
+    }
 
 
 async def test_unknown_path_is_not_found():
