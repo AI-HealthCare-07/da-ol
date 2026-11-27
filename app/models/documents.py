@@ -35,7 +35,6 @@ class MedicalDocument(models.Model):
         description="가린 OCR 줄 JSON(page_no, line_idx, words[[글자, 신뢰도]]). 마스킹 후 암호화. 확정·만료 시 NULL (채민 요청)",
     )
     pages: fields.ReverseRelation["DocumentPage"]
-    pages: fields.ReverseRelation["DocumentPage"]
 
     class Meta:
         table = "medical_documents"
