@@ -83,3 +83,22 @@ async def test_requires_login():
     app.dependency_overrides.pop(get_request_user, None)
     response = await upload([("a.png", image_bytes())])
     assert response.status_code == 401
+
+
+async def test_prepare_pages_runs_off_event_loop(monkeypatch):
+    # PDF 그리기가 이벤트 루프를 막지 않게 스레드에서 도는지(#94 리뷰)
+    import threading
+
+    from app.apis.v1 import scan_routers
+
+    seen = []
+    real = scan_routers.prepare_pages
+
+    def spy(files):
+        seen.append(threading.current_thread() is threading.main_thread())
+        return real(files)
+
+    monkeypatch.setattr(scan_routers, "prepare_pages", spy)
+    response = await upload([("a.png", image_bytes())])
+    assert response.status_code == 501  # 검사 통과(저장 연결 전)
+    assert seen == [False]  # 메인 스레드(이벤트 루프)가 아닌 곳에서 실행됨

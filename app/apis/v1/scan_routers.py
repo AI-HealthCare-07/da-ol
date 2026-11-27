@@ -6,6 +6,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from app.apis.v1.stubs import not_implemented
 from app.core.exceptions import AppError
@@ -33,7 +34,10 @@ async def upload_scan(
     파일 크기·형식·암호·손상·페이지 수 검사는 요청을 받을 때 끝내고(6장 비고), 통과한 경우에만 202를 돌려줍니다.
     """
     try:
-        pages = prepare_pages(await read_uploads(files))
+        uploaded = await read_uploads(files)
+        # PDF 그리기는 무거운 일반 함수라 스레드에서 돌림. 이벤트 루프에서 바로 부르면 그리는 동안
+        # 다른 요청(챗봇 답변 흐름 등)이 모두 멈춤
+        pages = await run_in_threadpool(prepare_pages, uploaded)
     except UploadError as e:
         raise upload_error(e) from None  # 파일 내용은 메시지·로그에 남기지 않음
 
