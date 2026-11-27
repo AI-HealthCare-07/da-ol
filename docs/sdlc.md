@@ -42,7 +42,7 @@ SDLC는 소프트웨어를 기획부터 검증까지 체계적으로 구축하�
 | SDLC 단계 | 다올 프로젝트 적용 산출물 및 프로세스 | 핵심 역할 |
 | :--- | :--- | :--- |
 | **1. 분석** | • 요구사항 정의서 (`REQ-*` 기능·비기능 요구사항)<br>• 사용자 시나리오 (시나리오 1: 1차 핵심 흐름, 시나리오 2: 고도화 흐름) | 개발 범위 확정, 예외 케이스 도출, 배포 전 QA 합격 기준 정의 |
-| **2. 설계** | • API 명세서 (`docs/planning/daol_API_명세서.md`)<br>• 데이터베이스 ERD (`daol_erd_v2.dbml`)<br>• 와이어프레임 및 화면 설계서, 프론트 FSD(Pages First) 구조 | 프론트·백엔드·AI 간 인터페이스 통일, 데이터 정합성 확보 |
+| **2. 설계** | • API 명세서 (`docs/planning/daol_API_명세서.md`)<br>• 데이터베이스 ERD (`daol_erd.dbml`)<br>• 와이어프레임 및 화면 설계서, 프론트 FSD(Pages First) 구조 | 프론트·백엔드·AI 간 인터페이스 통일, 데이터 정합성 확보 |
 | **3. 개발** | • GitHub 이슈·브랜치(`type/이슈번호-설명`)·PR 규칙 및 작업별 커밋 분리<br>• CI 자동 검증 (`ruff check`, `ruff format --check`, `pytest`)<br>• 문서 하네스 (`AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`) `(예정)` | 코드 일관성 유지, 리뷰 효율화, AI 에이전트 작업 품질 통제 |
 | **4. 테스트** | • 기능별 단위·통합 테스트 (`app/tests/<기능>/`, `fakes.py` 격리)<br>• 공용 테스트 처방 시나리오 13건 (`docs/test-prescriptions/`) 및 시드 스크립트 (`scripts/seed.py`)<br>• KST 기준 7일치 복약·개화 시드 데이터 보완 `(예정)` | OCR 파싱·약품 매칭률·복약/개화 로직의 재현 가능한 검증 |
 
