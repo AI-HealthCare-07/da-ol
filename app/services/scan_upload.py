@@ -22,7 +22,7 @@ from typing import Protocol
 import pypdfium2 as pdfium
 from PIL import Image, UnidentifiedImageError
 
-from app.dtos.scan import ScanErrorCode
+from app.core.exceptions import ErrorCode
 from app.services.scan_service import MAX_FILE_BYTES, MAX_PAGES, MAX_TOTAL_BYTES
 
 # PDF 그리기 배율. 1 = 72dpi. 2 ≈ 144dpi로 처방전 글자를 읽기에 충분하고 메모리도 적게 씀(12/9 메모리 측정 때 조정)
@@ -38,25 +38,25 @@ MIME_BY_KIND = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf
 
 # 6-3 화면 문구
 MESSAGES = {
-    ScanErrorCode.FILE_TOO_LARGE: "파일 용량이 너무 커요. 한 개에 10MB, 모두 합쳐 30MB까지 올릴 수 있어요",
-    ScanErrorCode.UNSUPPORTED_FILE_TYPE: "jpg, png, pdf 파일만 올릴 수 있어요",
-    ScanErrorCode.ENCRYPTED_PDF: "암호가 걸린 PDF는 읽을 수 없어요. 암호를 푼 파일이나 사진으로 올려 주세요",
-    ScanErrorCode.INVALID_FILE: "파일을 열 수 없어요. 다른 파일로 다시 올려 주세요",
-    ScanErrorCode.TOO_MANY_PAGES: f"한 번에 {MAX_PAGES}장까지 올릴 수 있어요",
+    ErrorCode.FILE_TOO_LARGE: "파일 용량이 너무 커요. 한 개에 10MB, 모두 합쳐 30MB까지 올릴 수 있어요",
+    ErrorCode.UNSUPPORTED_FILE_TYPE: "jpg, png, pdf 파일만 올릴 수 있어요",
+    ErrorCode.ENCRYPTED_PDF: "암호가 걸린 PDF는 읽을 수 없어요. 암호를 푼 파일이나 사진으로 올려 주세요",
+    ErrorCode.INVALID_FILE: "파일을 열 수 없어요. 다른 파일로 다시 올려 주세요",
+    ErrorCode.TOO_MANY_PAGES: f"한 번에 {MAX_PAGES}장까지 올릴 수 있어요",
 }
 STATUS_CODES = {
-    ScanErrorCode.FILE_TOO_LARGE: 413,
-    ScanErrorCode.UNSUPPORTED_FILE_TYPE: 415,
-    ScanErrorCode.ENCRYPTED_PDF: 422,
-    ScanErrorCode.INVALID_FILE: 422,
-    ScanErrorCode.TOO_MANY_PAGES: 422,
+    ErrorCode.FILE_TOO_LARGE: 413,
+    ErrorCode.UNSUPPORTED_FILE_TYPE: 415,
+    ErrorCode.ENCRYPTED_PDF: 422,
+    ErrorCode.INVALID_FILE: 422,
+    ErrorCode.TOO_MANY_PAGES: 422,
 }
 
 
 class UploadError(Exception):
     """파일 검사 실패. 라우터가 {code, message}(1-1)로 바꿔 돌려줍니다. 메시지에 파일 내용은 넣지 않습니다."""
 
-    def __init__(self, code: ScanErrorCode, file_index: int | None = None) -> None:
+    def __init__(self, code: ErrorCode, file_index: int | None = None) -> None:
         super().__init__(code.value)
         self.code = code
         self.status_code = STATUS_CODES[code]
@@ -102,10 +102,10 @@ async def read_uploads(uploads: list[ReadableUpload]) -> list[UploadedFile]:
     for i, upload in enumerate(uploads):
         data = await upload.read(MAX_FILE_BYTES + 1)
         if len(data) > MAX_FILE_BYTES:
-            raise UploadError(ScanErrorCode.FILE_TOO_LARGE, i)
+            raise UploadError(ErrorCode.FILE_TOO_LARGE, i)
         total += len(data)
         if total > MAX_TOTAL_BYTES:
-            raise UploadError(ScanErrorCode.FILE_TOO_LARGE)
+            raise UploadError(ErrorCode.FILE_TOO_LARGE)
         files.append(UploadedFile(upload.filename, data))
     return files
 
@@ -124,9 +124,9 @@ def detect_kind(data: bytes) -> str | None:
 def _check_sizes(files: list[UploadedFile]) -> None:
     for i, f in enumerate(files):
         if len(f.data) > MAX_FILE_BYTES:
-            raise UploadError(ScanErrorCode.FILE_TOO_LARGE, i)
+            raise UploadError(ErrorCode.FILE_TOO_LARGE, i)
     if sum(len(f.data) for f in files) > MAX_TOTAL_BYTES:
-        raise UploadError(ScanErrorCode.FILE_TOO_LARGE)
+        raise UploadError(ErrorCode.FILE_TOO_LARGE)
 
 
 def _check_image(data: bytes, index: int) -> None:
@@ -137,12 +137,12 @@ def _check_image(data: bytes, index: int) -> None:
             with Image.open(io.BytesIO(data)) as img:  # 크기는 머리 부분만 읽어서 알 수 있음
                 width, height = img.size
                 if width * height > MAX_IMAGE_PIXELS:
-                    raise UploadError(ScanErrorCode.INVALID_FILE, index)
+                    raise UploadError(ErrorCode.INVALID_FILE, index)
                 img.verify()  # 잘린 파일·깨진 헤더를 찾음(픽셀은 디코딩하지 않음)
     except Image.DecompressionBombError as e:  # 약 1억 7900만 픽셀 초과: Pillow가 열기부터 거절
-        raise UploadError(ScanErrorCode.INVALID_FILE, index) from e
+        raise UploadError(ErrorCode.INVALID_FILE, index) from e
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as e:
-        raise UploadError(ScanErrorCode.INVALID_FILE, index) from e
+        raise UploadError(ErrorCode.INVALID_FILE, index) from e
 
 
 def _open_pdf(data: bytes, index: int) -> pdfium.PdfDocument:
@@ -152,11 +152,11 @@ def _open_pdf(data: bytes, index: int) -> pdfium.PdfDocument:
         # PDFium은 오류 코드를 따로 남기지 않은 실패에서 이전 호출의 코드를 그대로 돌려줄 때가 있음.
         # 그래서 '비밀번호 오류' 코드이면서 파일에 암호 사전(/Encrypt)이 있을 때만 암호 PDF로 봄
         is_encrypted = getattr(e, "err_code", None) == _PDFIUM_PASSWORD_ERROR and b"/Encrypt" in data
-        code = ScanErrorCode.ENCRYPTED_PDF if is_encrypted else ScanErrorCode.INVALID_FILE
+        code = ErrorCode.ENCRYPTED_PDF if is_encrypted else ErrorCode.INVALID_FILE
         raise UploadError(code, index) from e
     if len(pdf) == 0:  # 쪽이 없는 PDF는 그 파일 번호로 알려 줌(다른 파일과 섞여도 몇 번째인지 맞게)
         pdf.close()
-        raise UploadError(ScanErrorCode.INVALID_FILE, index)
+        raise UploadError(ErrorCode.INVALID_FILE, index)
     return pdf
 
 
@@ -177,7 +177,7 @@ def _render_pdf(pdf: pdfium.PdfDocument, index: int) -> list[bytes]:
             page.render(scale=_render_scale(page)).to_pil().save(buf, "PNG")
             pages.append(buf.getvalue())
     except (pdfium.PdfiumError, OSError, ValueError) as e:
-        raise UploadError(ScanErrorCode.INVALID_FILE, index) from e
+        raise UploadError(ErrorCode.INVALID_FILE, index) from e
     return pages
 
 
@@ -186,7 +186,7 @@ def _detect_kinds(files: list[UploadedFile]) -> list[str]:
     for i, f in enumerate(files):
         kind = detect_kind(f.data)
         if kind is None:
-            raise UploadError(ScanErrorCode.UNSUPPORTED_FILE_TYPE, i)
+            raise UploadError(ErrorCode.UNSUPPORTED_FILE_TYPE, i)
         kinds.append(kind)
     return kinds
 
@@ -204,7 +204,7 @@ def _open_all(files: list[UploadedFile], kinds: list[str], opened: list[pdfium.P
 def _check_page_count(opened: list[pdfium.PdfDocument | None]) -> None:
     total = sum(len(pdf) if pdf is not None else 1 for pdf in opened)
     if total > MAX_PAGES:
-        raise UploadError(ScanErrorCode.TOO_MANY_PAGES)
+        raise UploadError(ErrorCode.TOO_MANY_PAGES)
 
 
 def prepare_pages(files: list[UploadedFile]) -> list[PageImage]:

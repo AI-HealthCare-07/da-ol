@@ -18,9 +18,8 @@ scan_router = APIRouter(tags=["scans"])
 
 
 def upload_error(e: UploadError) -> AppError:
-    """파일 검사 실패 → 1-1 에러 형식({code, message}). 6-3 상태 코드·문구 그대로.
-    TODO(#52 머지 후): ScanErrorCode를 ErrorCode로 옮기고 code=e.code로 바꾸기"""
-    return AppError(e.status_code, e.code.value, e.message)
+    """파일 검사 실패 → 1-1 에러 형식({code, message}). 6-3 상태 코드·문구 그대로."""
+    return AppError(e.status_code, e.code, e.message)
 
 
 @scan_router.post("/scans", status_code=status.HTTP_202_ACCEPTED)

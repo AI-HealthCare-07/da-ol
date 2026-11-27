@@ -7,6 +7,7 @@ DB를 쓰지 않아서 TestCase 없이 async 함수로 씁니다(pytest asyncio_
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core.exceptions import ErrorCode
 from app.dependencies.security import get_request_user
 from app.main import app
 from app.models.users import User
@@ -43,7 +44,7 @@ async def test_upload_errors_use_error_format(files, status_code, code):
     assert response.status_code == status_code
     body = response.json()
     assert body["code"] == code
-    assert body["message"] == su.MESSAGES[su.ScanErrorCode(code)]
+    assert body["message"] == su.MESSAGES[ErrorCode(code)]
     assert set(body) == {"code", "message"}  # 파일 내용·이름은 응답에 넣지 않음
 
 
@@ -53,11 +54,23 @@ async def test_file_too_large(monkeypatch):
     assert response.status_code == 413 and response.json()["code"] == "FILE_TOO_LARGE"
 
 
-async def test_missing_doc_type_or_files_is_422():
-    assert (await upload([("a.png", image_bytes())], doc_type=None)).status_code == 422
-    assert (await upload([("a.png", image_bytes())], doc_type="receipt")).status_code == 422
+@pytest.mark.parametrize(
+    "files, doc_type, field",
+    [
+        ([("a.png", None)], None, "doc_type"),  # doc_type 없음
+        ([("a.png", None)], "receipt", "doc_type"),  # 고를 수 없는 값
+        ([], "prescription", "files"),  # 파일 없음
+    ],
+)
+async def test_missing_or_wrong_fields_are_validation_error(files, doc_type, field):
+    files = [(name, image_bytes()) for name, _ in files]
+    data = {"doc_type": doc_type} if doc_type else {}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        assert (await client.post(URL, data={"doc_type": "prescription"})).status_code == 422
+        response = await client.post(URL, files=[("files", f) for f in files] or None, data=data)
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == ErrorCode.VALIDATION_ERROR
+    assert field in body["fields"]  # 프론트가 이 칸 아래에 문구를 띄움
 
 
 async def test_valid_upload_not_connected_yet():
