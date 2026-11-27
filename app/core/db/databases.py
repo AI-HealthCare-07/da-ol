@@ -12,6 +12,10 @@ TORTOISE_APP_MODELS = [
     "app.models.prescriptions",
     "app.models.intake",
     "app.models.garden",
+    "app.models.rag",
+    "app.models.guides",
+    "app.models.chats",
+    "app.models.llm_logs",
 ]
 
 TORTOISE_ORM = {
